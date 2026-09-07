@@ -6,8 +6,9 @@ import type { VerificationProvider, VerificationResultPayload } from '../types';
  * see SIH26100_Problem_Analysis.md Section 3). Each returns a clearly
  * labelled simulated result - low confidence, isMock true, and a `note`
  * explaining exactly what real integration this would require - rather
- * than pretending to be live. Deterministic per bidder (hashed on id) so
- * results are stable across runs instead of random.
+ * than pretending to be live. Deterministic per bidder - hashed on the
+ * stable bidder.key, not the cuid id (which is regenerated on every
+ * re-seed), so the demo profile stays the same across re-seeds.
  */
 function hashToUnit(input: string): number {
   let h = 0;
@@ -21,7 +22,7 @@ function makeStubProvider(key: string, roadmapNote: string): VerificationProvide
   return {
     key,
     async verify({ bidder }): Promise<VerificationResultPayload> {
-      const roll = hashToUnit(bidder.id + key);
+      const roll = hashToUnit(`${bidder.key}:${key}`);
       const status: VerificationResultPayload['status'] = roll > 0.85 ? 'VERIFIED_FAIL' : 'VERIFIED_OK';
       return {
         status,

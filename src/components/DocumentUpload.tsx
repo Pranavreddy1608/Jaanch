@@ -47,7 +47,7 @@ export function DocumentUpload({
       {state.status === 'error' && <p className="text-xs text-red-600">{state.message}</p>}
       {state.status === 'ok' && <p className="text-xs text-green-700">{state.message}</p>}
       <p className="text-xs text-slate-400">
-        The AI extraction step reads the uploaded file directly via a multimodal Claude call — no separate OCR. Uploading
+        The AI extraction step reads the uploaded file directly via a multimodal LLM call — no separate OCR. Uploading
         replaces any existing {label.toLowerCase()} for this bidder.
       </p>
     </form>
