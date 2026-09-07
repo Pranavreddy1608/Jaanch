@@ -92,6 +92,7 @@ model VerificationResult {
   confidence      Float    @default(1.0)
   rawResponse     String // JSON string of provider response
   isMock          Boolean  @default(true)
+  method          String   @default("simulated") // real | real+simulated | simulated | sandbox-probe
   checkedAt       DateTime @default(now())
 
   @@index([bidderId])

@@ -34,11 +34,12 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   const latestScore = bidder.scores[0];
   const evaluations: RequirementEvaluation[] = latestScore ? JSON.parse(latestScore.breakdown) : [];
 
-  // isMock flag per requirement, for the "simulated / live" tag - taken
-  // from the most recent VerificationResult for that requirement code.
-  const isMockByCode = new Map<string, boolean>();
+  // Verification method per requirement, for the honesty tag ("real
+  // algorithm" vs "simulated") - taken from the most recent
+  // VerificationResult for that requirement code.
+  const methodByCode = new Map<string, string>();
   for (const vr of bidder.verificationResults) {
-    if (!isMockByCode.has(vr.requirementCode)) isMockByCode.set(vr.requirementCode, vr.isMock);
+    if (!methodByCode.has(vr.requirementCode)) methodByCode.set(vr.requirementCode, vr.method);
   }
 
   return (
@@ -93,7 +94,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
                   mandatory={e.mandatory}
                   outcome={e.outcome}
                   reason={e.reason}
-                  isMock={isMockByCode.get(e.code)}
+                  method={methodByCode.get(e.code)}
                 />
               ))}
             </tbody>

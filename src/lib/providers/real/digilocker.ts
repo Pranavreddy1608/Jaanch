@@ -48,6 +48,7 @@ function simulatedResult(note: string, extra: Record<string, unknown> = {}): Ver
     status: 'VERIFIED_OK',
     confidence: 0.6,
     isMock: true,
+    method: 'sandbox' in extra || 'sandboxProbe' in extra ? 'sandbox-probe' : 'simulated',
     raw: { simulated: true, note: `DigiLocker document verification simulated (${note}).`, ...extra },
   };
 }

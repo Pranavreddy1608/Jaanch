@@ -37,10 +37,26 @@ export interface VerificationInput {
   documents: DocumentInput[];
 }
 
+/**
+ * How a result was actually produced - so the UI can be honest about which
+ * checks run real logic vs. simulated data:
+ *   'real'           - outcome determined entirely by a real algorithm
+ *                      (e.g. GSTIN Mod-36 checksum, PAN format) with no
+ *                      fabricated data involved
+ *   'real+simulated' - a real identifier check passed, then a simulated
+ *                      registry cross-check was layered on top
+ *   'simulated'      - fully simulated registry lookup (fixture data)
+ *   'sandbox-probe'  - a real network probe against a government sandbox,
+ *                      document-level result still simulated
+ */
+export type VerificationMethod = 'real' | 'real+simulated' | 'simulated' | 'sandbox-probe';
+
 export interface VerificationResultPayload {
   status: VerificationStatus;
   confidence: number; // 0..1
   isMock: boolean;
+  /** Defaults to 'simulated' when a provider doesn't set it. */
+  method?: VerificationMethod;
   raw: Record<string, unknown>;
 }
 

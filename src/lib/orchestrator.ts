@@ -67,6 +67,7 @@ export async function runVerificationForBidder(bidderId: string) {
     let raw: Record<string, unknown> = {};
     let confidence = 0;
     let isMock = true;
+    let method = 'simulated';
 
     try {
       const provider = getProvider(requirement.sourceType);
@@ -94,6 +95,7 @@ export async function runVerificationForBidder(bidderId: string) {
       raw = result.raw;
       confidence = result.confidence;
       isMock = result.isMock;
+      method = result.method ?? 'simulated';
     } catch (err) {
       raw = { note: err instanceof Error ? err.message : 'Unknown provider error' };
     }
@@ -107,6 +109,7 @@ export async function runVerificationForBidder(bidderId: string) {
         confidence,
         rawResponse: JSON.stringify(raw),
         isMock,
+        method,
       },
     });
 
@@ -124,7 +127,7 @@ export async function runVerificationForBidder(bidderId: string) {
       bidderId,
       actor: 'SYSTEM',
       action: 'REQUIREMENT_CHECKED',
-      details: { code: requirement.code, sourceType: requirement.sourceType, status, outcome: evaluation.outcome, isMock },
+      details: { code: requirement.code, sourceType: requirement.sourceType, status, outcome: evaluation.outcome, isMock, method },
     });
   }
 

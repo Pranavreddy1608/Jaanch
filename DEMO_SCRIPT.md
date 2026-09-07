@@ -15,7 +15,7 @@ npm run seed           # only if the data looks off — resets to the 5 demo bid
 - Have one real-ish PDF certificate ready to upload (or use
   `scripts/fixtures/sample-local-content-certificate.pdf` — it declares 78%).
 
-Stable demo profile (fixed across re-seeds): **Chennai 100 · Coastal 54 · Bharath 92 · Swift 46 · NovaTech 38**.
+Stable demo profile (fixed across re-seeds): **Chennai 100 · Coastal 54 · Bharath 92 · Swift 31 · NovaTech 23**.
 
 ---
 
@@ -45,7 +45,11 @@ Point at, in order:
 - **AI Recommendation** — read the first sentence aloud. Note the last line: *"the final
   qualification and award decision remains entirely your responsibility."*
 - **Requirement-by-requirement** table — every row MET, each with a plain-English reason
-  and a `SIMULATED` / `LIVE` tag. "Nothing is a black box — every score traces to a row."
+  and an honesty tag. Point at the **GST** and **PAN** rows: `REAL FORMAT + SIM. REGISTRY`.
+  "The identifier checks here run the actual government algorithms — the GSTIN Mod-36
+  checksum, the PAN format and holder-type rules — not a lookup table. The registration
+  layer on top is still simulated, and the tag says so. Everything else is `SIMULATED`
+  and labelled." (Show Swift and NovaTech later for what the real checks *catch*.)
 - **Documents** — the local-content certificate with **AI-extracted fields**
   (`localContentPercent: 60`, `certifyingAgencyName`).
 - **Audit trail** at the bottom — VERIFICATION_STARTED → per-requirement checks →
@@ -68,7 +72,21 @@ Point at, in order:
 > The system caught a one-letter mismatch between the Udyam certificate and the bid —
 > exactly the 'identify inconsistent information' the problem statement asks for."
 
-## 5. Record a decision (30s)
+## 5. What the real algorithms catch — Swift & NovaTech (30s)
+
+- **Swift Supplies Enterprises** → Details → **GST** row, **NOT MET**, tag `REAL ALGORITHM`:
+  *"GSTIN validation failed — Mod-36 checksum failed: 15th character is 'A', expected 'C'."*
+
+  > "This isn't 'not found in our table' — we ran the actual GSTN checksum and the number
+  > doesn't check out. A fabricated or fat-fingered GSTIN gets caught here."
+
+- **NovaTech Industrial Solutions** → Details → **PAN** row, **NOT MET**, tag `REAL ALGORITHM`:
+  *"PAN structural validation failed — PAN must be 5 letters, then 4 digits, then 1 letter."*
+
+  > "Their PAN has a letter 'O' where a digit belongs — a real data-entry error the format
+  > check catches immediately."
+
+## 6. Record a decision (30s)
 
 - On Chennai (or Bharath), the **PO Decision** panel: *"Recording as \<your name> ·
   Procurement Officer"* — no free-text name field.
@@ -78,7 +96,7 @@ Point at, in order:
 
 > "The AI never decides. The officer's call is a separate, explicit, logged action."
 
-## 6. Real document upload + extraction (40s)
+## 7. Real document upload + extraction (40s)
 
 - Open any bidder → **Documents** → **Choose File** → pick your PDF certificate →
   **Upload & extract**.
@@ -87,22 +105,24 @@ Point at, in order:
   show the percentage and agency pulled out of *your* uploaded file, and the
   Make-in-India row reflects it.
 
-## 7. Viewer role — the guardrail (20s)
+## 8. Viewer role — the guardrail (20s)
 
 - New tab / incognito → sign in as **Viewer**.
 - Open any bidder: the decision panel reads *"You are signed in as a Viewer. Only a
   Procurement Officer can record a qualify / disqualify decision."* — the form isn't
   there. (It's also enforced server-side — a forged cookie gets the same treatment.)
 
-## 8. Close — "what's real" (20s)
+## 9. Close — "what's real" (25s)
 
-> "Five sources are full mock providers running the real rules engine. DigiLocker is
-> wired against the actual government API — the adapter documents the real user-consent
-> flow — but full activation needs partner onboarding that takes weeks, so it returns a
-> clearly-labelled simulated result. The rest are labelled stubs. The pipeline, the
-> document AI, the audit trail, and the human decision are all real. Swapping any mock
-> for a production integration is a one-line change — that's the point of the adapter
-> layer."
+> "We were deliberate about not faking verification. **PAN and GST run the real
+> government algorithms** — the GSTIN Mod-36 checksum is tested against real published
+> GSTINs; the PAN format and holder-type rules are the actual Income Tax spec. The
+> registration layer on top of those is simulated, and every row's tag says exactly
+> which is which. Udyam, blacklist and Make-in-India are simulated registry lookups
+> running the real rules engine. DigiLocker is wired against the real API but needs
+> partner onboarding to activate. The pipeline, the document AI, the audit trail and the
+> human decision are all real. Swapping any simulated source for a production
+> integration is a one-line change — that's the adapter layer."
 
 ---
 

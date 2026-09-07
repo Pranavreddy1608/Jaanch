@@ -87,8 +87,8 @@ async function main() {
       key: 'chennai-precision-engineering',
       name: 'Chennai Precision Engineering Pvt Ltd',
       udyamNumber: 'UDYAM-TN-03-0012345',
-      gstin: '33AAACC1206D1ZM',
-      pan: 'AAACC1206D',
+      gstin: '33AAACC1206D1ZN', // valid Mod-36 checksum; embedded PAN matches
+      pan: 'AAACC1206D', // valid structure, holder type C = Company
       claimedTurnoverInrLakh: 480,
       claimedEmployeeCount: 62,
       certificateText: 'Local Content Certificate: This is to certify that the goods offered contain 60% local content as per Make in India guidelines, verified by S. Ramanathan & Co, DPIIT registered chartered accountant.',
@@ -97,8 +97,8 @@ async function main() {
       key: 'coastal-traders',
       name: 'Coastal Traders & Co',
       udyamNumber: null,
-      gstin: '33AACFC5678K1Z2', // registered but return filing is 5 months delayed
-      pan: 'AACFC5678K',
+      gstin: '33AACFC5678K1Z8', // valid checksum; registered but return filing is 5 months delayed
+      pan: 'AACFC5678K', // valid structure, holder type F = Firm
       claimedTurnoverInrLakh: 210,
       claimedEmployeeCount: 18,
       certificateText: 'Local content declared at 45% per attached self-certification, agency verification pending.',
@@ -107,8 +107,8 @@ async function main() {
       key: 'bharath-msme-fabricators',
       name: 'Bharath MSME Febricators', // deliberate near-match typo vs registry name -> INCONSISTENT
       udyamNumber: 'UDYAM-TN-06-0098765',
-      gstin: '29AAGFB0987R1Z9',
-      pan: 'AAGFB0987R',
+      gstin: '29AAGFB0987R1ZM', // valid checksum; embedded PAN matches
+      pan: 'AAGFB0987R', // valid structure, holder type B = BOI
       claimedTurnoverInrLakh: 95,
       claimedEmployeeCount: 12,
       certificateText: 'We certify 55% local content on all supplied fabricated assemblies, certified by K. Suresh & Co.',
@@ -117,8 +117,8 @@ async function main() {
       key: 'swift-supplies-enterprises',
       name: 'Swift Supplies Enterprises', // blacklisted PAN
       udyamNumber: null,
-      gstin: '27AABCS4321L1ZQ',
-      pan: 'AABCS4321L',
+      gstin: '27AABCS4321L1ZA', // BROKEN Mod-36 checksum (expected 'C') -> real GSTIN check fails
+      pan: 'AABCS4321L', // valid structure; registry shows IT return not filed
       claimedTurnoverInrLakh: 340,
       claimedEmployeeCount: 40,
       certificateText: 'Local content 20% as declared by supplier.',
@@ -128,7 +128,7 @@ async function main() {
       name: 'NovaTech Industrial Solutions', // Udyam number doesn't exist in registry; no local content cert uploaded
       udyamNumber: 'UDYAM-TN-09-0055555',
       gstin: null,
-      pan: 'AADCN6543P',
+      pan: 'AADCN65O3P', // malformed: letter 'O' where a digit belongs -> real PAN format check fails
       claimedTurnoverInrLakh: 610,
       claimedEmployeeCount: 88,
       certificateText: null,

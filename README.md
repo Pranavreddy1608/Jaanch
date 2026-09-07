@@ -18,6 +18,7 @@ cp .env.example .env.local   # then set GEMINI_API_KEY (free, recommended) — s
 npx prisma generate
 npm run db:push              # creates dev.db (SQLite) from prisma/schema.prisma
 npm run seed                 # loads 1 demo tender + 5 demo bidders
+npm test                     # PAN + GSTIN validators, checked against real published GSTINs
 npm run ai:check             # optional — verifies your LLM key works end to end
 npm run dev                  # http://localhost:3000
 ```
@@ -38,20 +39,25 @@ On Gemini's free tier Google may use inputs to improve its models — fine here 
 
 ## What's real vs. simulated in this build
 
-| Source | Status |
-|---|---|
-| Udyam, GST, PAN, Blacklist/Debarment, Make in India (local content) | **Full mock providers** — realistic fixture data + the real rules-engine threshold logic on top |
-| DigiLocker | **Adapter written against the real API.** Returns a labelled simulated document result; the code documents the real user-consent Requester flow (create request → consent redirect → poll status → fetch document). `USE_REAL_DIGILOCKER=true` + creds adds a live sandbox reachability probe. Full activation needs partner onboarding (signed Requester agreement + Partner SOP approval — weeks, not days; analysis doc §3). |
-| MCA21, EPFO/ESIC, NSIC, Startup India, OEM authorization | **Stub providers** — clearly labelled simulated results, real integration path in code comments. These are certificate-based in reality (no queryable API), so production would verify them from uploaded documents, not a lookup. |
-| Document intelligence (local-content certificate) | **Real** — uploaded PDF/image → multimodal LLM extraction of the declared local-content % and certifying agency, cross-checked against the DPIIT fixture. |
-| Compliance rules, scoring, audit trail, PO decision | **Real** — deterministic, fully persisted, every step audit-logged. |
+Every requirement row in the UI carries a tag saying how that specific check was produced:
 
-This isn't a shortcut being hidden — it's the honest, defensible answer to "why doesn't this hit live government APIs," and it's exactly what `SIH26100_Problem_Analysis.md` recommends presenting to judges.
+| Source | Status | Row tag |
+|---|---|---|
+| **PAN** | **REAL structural validation** — the Income Tax Dept format + holder-type character (`src/lib/validation/pan.ts`), then a **simulated** registration/filing cross-check on top. Confirms the PAN is well-formed and correctly typed; it can't confirm it's *registered* (no open Verify-PAN API). | `REAL FORMAT + SIM. REGISTRY`, or `REAL ALGORITHM` when the format check itself fails |
+| **GST** | **REAL** — GSTIN structure + the actual **Mod-36 (Luhn mod 36) checksum** GSTN uses for the 15th character, plus a check that the PAN embedded in the GSTIN matches the bidder's declared PAN (`src/lib/validation/gstin.ts`, verified against real published GSTINs in `gstin.test.ts`). Registration status + return-filing history are a **simulated** layer on top. | `REAL FORMAT + SIM. REGISTRY`, or `REAL ALGORITHM` when the checksum fails |
+| Udyam, Blacklist/Debarment, Make in India | **Simulated** registry lookup (fixture data) + the real rules-engine threshold logic. | `SIMULATED` |
+| DigiLocker | **Adapter written against the real API.** Returns a labelled simulated document result; the code documents the real user-consent Requester flow. `USE_REAL_DIGILOCKER=true` + creds adds a live sandbox reachability probe. Full activation needs partner onboarding (weeks, not days; analysis doc §3). | `SIMULATED` / `LIVE SANDBOX PROBE` |
+| MCA21, EPFO/ESIC, NSIC, Startup India, OEM authorization | **Stub providers** — labelled simulated results, real integration path in code comments. Certificate-based in reality (no queryable API), so production verifies them from uploaded documents. | `SIMULATED` |
+| Document intelligence (local-content certificate) | **Real** — uploaded PDF/image → multimodal LLM extraction of the declared local-content % and certifying agency, cross-checked against the DPIIT fixture. | — |
+| Compliance rules, scoring, audit trail, PO decision | **Real** — deterministic, fully persisted, every step audit-logged. | — |
+
+Per evaluator feedback, the identifier checks (PAN, GST) were moved from fixture lookup to real government-specified algorithms — fewer sources are "fully verified", but what's shown as real *is* real. This is the honest answer to "why doesn't this hit live government APIs," which is what `SIH26100_Problem_Analysis.md` recommends presenting to judges.
 
 ## Architecture
 
 - **`prisma/schema.prisma`** — Tender, ComplianceRequirement (tender-configurable rules), Bidder, Document (incl. uploaded `fileData`/`mimeType`), VerificationResult, Score, Decision, AuditLog.
-- **`src/lib/providers/`** — the provider-adapter layer (`types.ts` is the interface; `mock/`, `stub/`, `real/` are implementations; `registry.ts` maps `sourceType` → provider).
+- **`src/lib/providers/`** — the provider-adapter layer (`types.ts` is the interface; `mock/`, `stub/`, `real/` are implementations; `registry.ts` maps `sourceType` → provider). Each result carries a `method` (`real` / `real+simulated` / `simulated` / `sandbox-probe`) that surfaces as the honesty tag on every requirement row.
+- **`src/lib/validation/`** — real government-specified identifier checks with unit tests: `pan.ts` (Income Tax PAN format + holder type), `gstin.ts` (structure + Mod-36 checksum + embedded-PAN match). `npm test` runs these against real published GSTINs.
 - **`src/lib/rulesEngine.ts`** — deterministic, explainable eligibility logic (deliberately NOT a model — procurement decisions need to be auditable).
 - **`src/lib/scoring.ts`** — turns rule outcomes into a 0–100 compliance score + LOW/MEDIUM/HIGH risk tier.
 - **`src/lib/ai/`** — `llm.ts` is a small provider layer (Gemini via REST / Claude via SDK / deterministic fallback; see *AI provider* above). `documentExtraction.ts` (`extractLocalContentCertificate` from OCR text, `extractLocalContentCertificateFromFile` from an uploaded PDF/image via a multimodal call — same return shape) and `recommendation.ts` (plain-language PO summary) call through it. `npm run ai:check` (`scripts/check-ai.ts`) verifies the configured provider end to end.
