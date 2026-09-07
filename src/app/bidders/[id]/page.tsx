@@ -52,7 +52,9 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
 
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-lg border bg-white p-5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{bidder.tender.referenceNo}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            {bidder.tender.referenceNo} · {bidder.tender.title}
+          </p>
           <h2 className="text-xl font-semibold">{bidder.name}</h2>
           <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-600 sm:grid-cols-4">
             <div><dt className="text-xs text-slate-400">Udyam No.</dt><dd>{bidder.udyamNumber ?? '—'}</dd></div>

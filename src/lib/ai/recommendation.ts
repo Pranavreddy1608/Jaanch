@@ -17,7 +17,7 @@ export async function generateRecommendation(params: {
 }): Promise<string> {
   const { bidderName, complianceScore, riskLevel, evaluations } = params;
 
-  const gaps = evaluations.filter((e) => e.outcome !== 'MET');
+  const gaps = evaluations.filter((e) => e.outcome !== 'MET' && e.outcome !== 'NOT_APPLICABLE');
   const gapLines = gaps.map((g) => `- ${g.label}: ${g.outcome} (${g.reason})`).join('\n');
 
   const template = () => {

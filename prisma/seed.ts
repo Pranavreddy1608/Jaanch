@@ -12,63 +12,99 @@ async function main() {
   await prisma.complianceRequirement.deleteMany();
   await prisma.tender.deleteMany();
 
+  // Real, currently-live GeM tender - GEM/2026/B/7983771 (published 03-09-2026).
+  // Every field below is taken verbatim from the published bid document; it is
+  // independently verifiable on the GeM portal. Its bid window closes
+  // 08-09-2026 17:00, so after that it will show as closed on GeM.
   const tender = await prisma.tender.create({
     data: {
-      referenceNo: 'GEM/2026/B/CPCL-REFINERY-VALVES-001',
-      title: 'Supply of Industrial Control Valves - CPCL Manali Refinery',
-      organization: 'Ministry of Petroleum & Natural Gas',
-      department: 'Chennai Petroleum Corporation Limited (CPCL)',
-      category: 'Software', // per SIH26100 problem statement metadata
+      referenceNo: 'GEM/2026/B/7983771',
+      title: 'Cyber Forensic Hardware and Software',
+      organization: 'Centre for Development of Advanced Computing (C-DAC), Thiruvananthapuram',
+      department: 'Ministry of Electronics & IT — Department of Electronics and Information Technology',
+      category: 'Global Tender — GlobalTenderCategory (Q3)',
+      bidEndsAt: new Date('2026-09-08T17:00:00+05:30'),
+      emdRequired: false, // "EMD Detail — Required: No"
+      miiNote:
+        'Make in India Purchase Preference: NOT opted. Competent Authority (Dr. Parameswaran Nampoothiri V, Section Head Purchase, C-DAC) approved a Global Tender on 01-09-2026 — the tendered items are not available domestically. CA Approval CDAC/CFSPR291/16714.',
+      mseNote:
+        'MSE Purchase Preference: Yes — MSE OEMs / Service Providers get preference up to price within L1+15%, for up to 25% of bid quantity. Startups (DPIIT-registered) are relaxed from the experience criteria.',
       requirements: {
         create: [
-          {
-            code: 'UDYAM_STATUS',
-            label: 'Udyam / MSME Registration Status',
-            sourceType: 'udyam',
-            mandatory: true,
-            ruleConfig: JSON.stringify({ allowedCategories: ['Micro', 'Small', 'Medium'] }),
-          },
+          // --- Standard GeM seller-eligibility gates (apply to every GeM bid;
+          //     GeM seller registration itself requires GST + PAN) ---
           {
             code: 'GST_FILING',
-            label: 'GST Registration & Return Filing Compliance',
+            label: 'GST Registration & Return Filing',
             sourceType: 'gst',
             mandatory: true,
-            ruleConfig: JSON.stringify({ maxFilingDelayMonths: 2 }),
+            ruleConfig: JSON.stringify({
+              maxFilingDelayMonths: 2,
+              basis: 'GeM seller-registration requirement; financial-document verification is required for this bid.',
+            }),
           },
           {
             code: 'PAN_IT_COMPLIANCE',
-            label: 'PAN Validity & Income Tax Compliance',
+            label: 'PAN Validity',
             sourceType: 'pan',
             mandatory: true,
-            ruleConfig: JSON.stringify({}),
+            ruleConfig: JSON.stringify({ basis: 'GeM seller-registration requirement.' }),
           },
           {
             code: 'BLACKLIST_CHECK',
             label: 'Blacklisting / Debarment Check',
             sourceType: 'blacklist',
             mandatory: true,
-            ruleConfig: JSON.stringify({}),
+            ruleConfig: JSON.stringify({ basis: 'Standard eligibility gate (CVC / ministry debarment lists).' }),
           },
-          {
-            code: 'MAKE_IN_INDIA_LOCAL_CONTENT',
-            label: 'Make in India - Local Content Requirement',
-            sourceType: 'makeInIndia',
-            mandatory: true,
-            ruleConfig: JSON.stringify({ minLocalContentPercent: 50, tolerancePercent: 5 }),
-          },
+          // --- Explicitly required by THIS tender ---
           {
             code: 'OEM_AUTHORIZATION',
-            label: 'OEM Authorization Letter',
+            label: 'OEM Authorization Certificate',
             sourceType: 'oemAuthorization',
-            mandatory: false,
-            ruleConfig: JSON.stringify({}),
+            mandatory: true, // listed under "Document required from seller" for GEM/2026/B/7983771
+            ruleConfig: JSON.stringify({
+              basis: 'Listed under "Document required from seller" for this bid.',
+            }),
           },
+          // --- Purchase-preference / relaxation signal (NOT an eligibility
+          //     gate for a global tender open to all, incl. non-MSE / foreign) ---
+          {
+            code: 'UDYAM_STATUS',
+            label: 'Udyam / MSME Registration (purchase preference & relaxations)',
+            sourceType: 'udyam',
+            mandatory: false,
+            ruleConfig: JSON.stringify({
+              msePreferencePercent: 15,
+              mseQuantityCapPercent: 25,
+              confers: ['MSE purchase preference (L1+15%, up to 25% of quantity)', 'Experience-criteria relaxation (MSE / DPIIT Startup)'],
+              basis: 'This tender: MSE Purchase Preference = Yes. Not a disqualification criterion.',
+            }),
+          },
+          // --- MII local-content: WAIVED for this tender by competent authority ---
+          {
+            code: 'MAKE_IN_INDIA_LOCAL_CONTENT',
+            label: 'Make in India — Local Content',
+            sourceType: 'makeInIndia',
+            mandatory: false,
+            ruleConfig: JSON.stringify({
+              notApplicable: true,
+              waiverBasis:
+                'Not applicable to this tender. MII Purchase Preference = No; Competent Authority approved a Global Tender on the ground that the tendered items are not available domestically (CA Approval CDAC/CFSPR291/16714, 01-09-2026).',
+              // retained for reference / other tenders that reuse this sourceType
+              minLocalContentPercent: 50,
+              tolerancePercent: 5,
+            }),
+          },
+          // --- Labour-law compliance (GeM GTC — all bids) ---
           {
             code: 'EPFO_ESIC_COMPLIANCE',
-            label: 'EPFO / ESIC Compliance (where applicable)',
+            label: 'EPFO / ESIC & Labour Code Compliance (where applicable)',
             sourceType: 'epfoEsic',
             mandatory: false,
-            ruleConfig: JSON.stringify({}),
+            ruleConfig: JSON.stringify({
+              basis: 'GeM GTC: compliance with the four Labour Codes (Wages 2019; IR 2020; OSH 2020; Social Security 2020) / pre-existing labour laws.',
+            }),
           },
           {
             code: 'DOCUMENT_VERIFICATION',
@@ -111,7 +147,7 @@ async function main() {
       pan: 'AAGFB0987R', // valid structure, holder type B = BOI
       claimedTurnoverInrLakh: 95,
       claimedEmployeeCount: 12,
-      certificateText: 'We certify 55% local content on all supplied fabricated assemblies, certified by K. Suresh & Co.',
+      certificateText: 'We certify 55% local content on all supplied items, certified by K. Suresh & Co.',
     },
     {
       key: 'swift-supplies-enterprises',
@@ -161,7 +197,7 @@ async function main() {
     });
   }
 
-  console.log(`Seeded tender "${tender.title}" with ${bidders.length} demo bidders.`);
+  console.log(`Seeded tender ${tender.referenceNo} — "${tender.title}" with ${bidders.length} synthetic demo bidders.`);
 }
 
 main()

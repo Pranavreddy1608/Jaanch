@@ -1,7 +1,7 @@
 interface Props {
   label: string;
   mandatory: boolean;
-  outcome: 'MET' | 'NOT_MET' | 'NEEDS_REVIEW';
+  outcome: 'MET' | 'NOT_MET' | 'NEEDS_REVIEW' | 'NOT_APPLICABLE';
   reason: string;
   /** VerificationResult.method - drives the honesty tag. */
   method?: string;
@@ -11,6 +11,7 @@ const outcomeStyles: Record<Props['outcome'], string> = {
   MET: 'bg-green-100 text-green-800',
   NOT_MET: 'bg-red-100 text-red-800',
   NEEDS_REVIEW: 'bg-amber-100 text-amber-800',
+  NOT_APPLICABLE: 'bg-slate-100 text-slate-500',
 };
 
 // How the check was actually produced - shown so judges can see which
@@ -23,7 +24,9 @@ const methodTag: Record<string, { text: string; className: string }> = {
 };
 
 export function RequirementRow({ label, mandatory, outcome, reason, method }: Props) {
-  const tag = method ? methodTag[method] ?? methodTag.simulated : undefined;
+  // No method tag when the tender itself waived the requirement - nothing
+  // was verified, so "SIMULATED" / "REAL" would be misleading.
+  const tag = outcome !== 'NOT_APPLICABLE' && method ? methodTag[method] ?? methodTag.simulated : undefined;
   return (
     <tr className="border-b last:border-0">
       <td className="py-3 pr-4 align-top">

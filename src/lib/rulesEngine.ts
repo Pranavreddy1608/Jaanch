@@ -1,6 +1,6 @@
 import type { VerificationStatus } from './providers/types';
 
-export type RequirementOutcome = 'MET' | 'NOT_MET' | 'NEEDS_REVIEW';
+export type RequirementOutcome = 'MET' | 'NOT_MET' | 'NEEDS_REVIEW' | 'NOT_APPLICABLE';
 
 export interface RequirementEvaluation {
   code: string;
@@ -29,6 +29,22 @@ export function evaluateRequirement(params: {
 }): RequirementEvaluation {
   const { code, label, mandatory, sourceType, ruleConfig, verification } = params;
   const { status, raw } = verification;
+
+  // A tender can declare a requirement not applicable to it (e.g. a Make in
+  // India local-content check on a global tender where the competent
+  // authority has approved that the items are not available domestically).
+  // This is tender configuration, not a verification result - it short-
+  // circuits before any provider outcome is considered, and scoring skips it.
+  if (ruleConfig.notApplicable === true) {
+    return {
+      code,
+      label,
+      mandatory,
+      sourceStatus: status,
+      outcome: 'NOT_APPLICABLE',
+      reason: (ruleConfig.waiverBasis as string) ?? 'This requirement does not apply to the current tender.',
+    };
+  }
 
   if (status === 'ERROR') {
     return { code, label, mandatory, sourceStatus: status, outcome: 'NEEDS_REVIEW', reason: 'Verification check failed to complete.' };

@@ -20,6 +20,7 @@ export function computeScore(evaluations: RequirementEvaluation[]): ScoreResult 
   let possible = 0;
 
   for (const evaluation of evaluations) {
+    if (evaluation.outcome === 'NOT_APPLICABLE') continue; // waived for this tender - counts neither way
     const weight = evaluation.mandatory ? 2 : 1;
     possible += weight;
     if (evaluation.outcome === 'MET') earned += weight;
@@ -27,7 +28,7 @@ export function computeScore(evaluations: RequirementEvaluation[]): ScoreResult 
     // NOT_MET earns 0
   }
 
-  const complianceScore = Math.round((earned / possible) * 100);
+  const complianceScore = possible === 0 ? 0 : Math.round((earned / possible) * 100);
 
   const hasMandatoryFailure = evaluations.some((e) => e.mandatory && e.outcome === 'NOT_MET');
 

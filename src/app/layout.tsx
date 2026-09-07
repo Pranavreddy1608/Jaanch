@@ -5,7 +5,7 @@ import { SignOutButton } from '@/components/SignOutButton';
 
 export const metadata: Metadata = {
   title: 'GeM Bid Compliance Verification Platform',
-  description: 'AI-assisted compliance verification for GeM procurement - CPCL (SIH26100)',
+  description: 'AI-assisted bidder compliance verification for GeM procurement (SIH26100)',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-3 px-6 py-4">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Ministry of Petroleum &amp; Natural Gas · Chennai Petroleum Corporation Limited
+                  Government e-Marketplace · Procurement Officer Console
                 </p>
                 <h1 className="text-xl font-semibold">GeM Bid Compliance Verification Platform</h1>
               </div>
