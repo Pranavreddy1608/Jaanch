@@ -1,0 +1,138 @@
+// GeM Bid Compliance Verification Platform - data model
+// SQLite for hackathon speed; swap provider to "postgresql" for production.
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tender {
+  id           String                  @id @default(cuid())
+  referenceNo  String                  @unique
+  title        String
+  organization String
+  department   String
+  category     String
+  createdAt    DateTime                @default(now())
+  requirements ComplianceRequirement[]
+  bidders      Bidder[]
+}
+
+// One row per statutory/eligibility check a tender requires.
+// ruleConfig is tender-specific and holds the thresholds the rules engine
+// evaluates against (e.g. minimum local content %, max GST filing delay).
+model ComplianceRequirement {
+  id         String   @id @default(cuid())
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id])
+  code       String // e.g. "UDYAM_STATUS", "GST_FILING", "MAKE_IN_INDIA_LOCAL_CONTENT"
+  label      String
+  sourceType String // provider key: udyam | gst | pan | blacklist | makeInIndia | mca21 | epfoEsic | nsic | startupIndia | oemAuthorization | digilocker
+  mandatory  Boolean  @default(true)
+  ruleConfig String // JSON string of rule parameters
+  createdAt  DateTime @default(now())
+
+  @@index([tenderId])
+}
+
+model Bidder {
+  id                     String                @id @default(cuid())
+  tenderId               String
+  tender                 Tender                @relation(fields: [tenderId], references: [id])
+  key                    String                @unique // stable slug used to join demo fixture data
+  name                   String
+  udyamNumber            String?
+  gstin                  String?
+  pan                    String?
+  cin                    String?
+  claimedTurnoverInrLakh Float?
+  claimedEmployeeCount   Int?
+  createdAt              DateTime              @default(now())
+  documents              Document[]
+  verificationResults    VerificationResult[]
+  scores                 Score[]
+  decisions              Decision[]
+  auditLogs              AuditLog[]
+
+  @@index([tenderId])
+}
+
+// Uploaded bidder documents. A document arrives one of two ways:
+//   - seeded with rawText only, simulating the output of an OCR step
+//     (real deployment would run OCR first, then feed rawText in), or
+//   - a real file upload (fileData + mimeType), which the AI extraction
+//     step reads directly via a multimodal Claude call - no separate OCR.
+// Either way the extraction module's contract is the same.
+model Document {
+  id            String   @id @default(cuid())
+  bidderId      String
+  bidder        Bidder   @relation(fields: [bidderId], references: [id])
+  docType       String // e.g. LOCAL_CONTENT_CERTIFICATE, OEM_AUTHORIZATION_LETTER, GST_RETURN_ACK
+  fileName      String
+  mimeType      String? // set for real uploads: application/pdf | image/png | image/jpeg | image/webp
+  fileData      Bytes? // raw uploaded file bytes; null for seeded (OCR-text-only) documents
+  rawText       String? // simulated/real OCR text the AI extraction step reads when there is no fileData
+  extractedData String? // JSON string produced by the AI extraction step
+  uploadedAt    DateTime @default(now())
+
+  @@index([bidderId])
+}
+
+model VerificationResult {
+  id              String   @id @default(cuid())
+  bidderId        String
+  bidder          Bidder   @relation(fields: [bidderId], references: [id])
+  requirementCode String
+  sourceType      String
+  status          String // VERIFIED_OK | VERIFIED_FAIL | INCONSISTENT | MISSING | ERROR
+  confidence      Float    @default(1.0)
+  rawResponse     String // JSON string of provider response
+  isMock          Boolean  @default(true)
+  checkedAt       DateTime @default(now())
+
+  @@index([bidderId])
+}
+
+model Score {
+  id               String   @id @default(cuid())
+  bidderId         String
+  bidder           Bidder   @relation(fields: [bidderId], references: [id])
+  complianceScore  Float
+  riskLevel        String // LOW | MEDIUM | HIGH
+  breakdown        String // JSON string: per-requirement evaluation detail
+  aiRecommendation String
+  computedAt       DateTime @default(now())
+
+  @@index([bidderId])
+}
+
+// The Procurement Officer's final call. Always separate from the AI output -
+// the system never auto-decides.
+model Decision {
+  id          String   @id @default(cuid())
+  bidderId    String
+  bidder      Bidder   @relation(fields: [bidderId], references: [id])
+  officerName String
+  outcome     String // QUALIFIED | DISQUALIFIED | CONDITIONAL
+  remarks     String?
+  decidedAt   DateTime @default(now())
+
+  @@index([bidderId])
+}
+
+// Immutable trail of every check and decision, for auditability.
+model AuditLog {
+  id        String   @id @default(cuid())
+  bidderId  String?
+  bidder    Bidder?  @relation(fields: [bidderId], references: [id])
+  actor     String // SYSTEM | AI_ENGINE | <officer name>
+  action    String
+  details   String // JSON string
+  createdAt DateTime @default(now())
+
+  @@index([bidderId])
+}
