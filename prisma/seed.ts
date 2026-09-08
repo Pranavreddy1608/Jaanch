@@ -238,8 +238,12 @@ const TENDERS: SeedTender[] = [
         pan: 'AAACC1206D',
         claimedTurnoverInrLakh: 480,
         claimedEmployeeCount: 62,
-        certificateText:
-          'Local Content Certificate: This is to certify that the goods offered contain 60% local content as per Make in India guidelines, verified by S. Ramanathan & Co, DPIIT registered chartered accountant.',
+        // No Local Content Certificate: this tender's MII / Local Content
+        // requirement is notApplicable (CA-waived global tender), so a
+        // local-content document has nothing to be evaluated against here.
+        // The multimodal-extraction demo lives on tenders 3/5/6/10 (where MII
+        // is active) and on the live OEM-authorization upload on this page.
+        certificateText: null,
       },
       {
         key: 'coastal-traders',
@@ -249,7 +253,7 @@ const TENDERS: SeedTender[] = [
         pan: 'AACFC5678K',
         claimedTurnoverInrLakh: 210,
         claimedEmployeeCount: 18,
-        certificateText: 'Local content declared at 45% per attached self-certification, agency verification pending.',
+        certificateText: null, // see chennai-precision-engineering: Local Content is notApplicable on this tender
       },
       {
         key: 'bharath-msme-fabricators',
@@ -259,7 +263,7 @@ const TENDERS: SeedTender[] = [
         pan: 'AAGFB0987R',
         claimedTurnoverInrLakh: 95,
         claimedEmployeeCount: 12,
-        certificateText: 'We certify 55% local content on all supplied items, certified by K. Suresh & Co.',
+        certificateText: null, // see chennai-precision-engineering: Local Content is notApplicable on this tender
       },
       {
         key: 'swift-supplies-enterprises',
@@ -269,7 +273,7 @@ const TENDERS: SeedTender[] = [
         pan: 'AABCS4321L',
         claimedTurnoverInrLakh: 340,
         claimedEmployeeCount: 40,
-        certificateText: 'Local content 20% as declared by supplier.',
+        certificateText: null, // see chennai-precision-engineering: Local Content is notApplicable on this tender
       },
       {
         key: 'novatech-industrial-solutions',

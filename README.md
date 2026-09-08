@@ -72,9 +72,13 @@ Every requirement row in the UI carries a tag saying how that specific check was
 
 Per evaluator feedback, the identifier checks (PAN, GST) were moved from fixture lookup to real government-specified algorithms — fewer sources are "fully verified", but what's shown as real *is* real. This is the honest answer to "why doesn't this hit live government APIs," which is what `SIH26100_Problem_Analysis.md` recommends presenting to judges.
 
+## Information architecture
+
+The app is a three-level drill-down: **Tenders → Bidders → Bidder detail**. `/dashboard` lists every tender (one card per real GeM bid); clicking one opens `/tenders/[id]`, which shows that bid's facts and the table of bidders who responded, with their compliance scores and risk tiers side by side; clicking a bidder opens `/bidders/[id]`, the per-requirement evidence, AI recommendation, document uploads, and the Procurement Officer's decision form. This mirrors how procurement actually works — a buyer compares all bids for one tender at a glance to shortlist, then examines the evidence for and records a qualify/disqualify decision on each bidder individually. The structure is deliberate; feature requests that would flatten or reorder it (e.g. a global bidder list, or per-requirement pages) are working against the real workflow, not toward it.
+
 ## Architecture
 
-- **`prisma/schema.prisma`** — Tender (with real bid facts: `bidEndsAt`, `emdRequired`, `miiNote`, `mseNote`), ComplianceRequirement (tender-configurable rules, incl. `ruleConfig.notApplicable`), Bidder, Document (incl. uploaded `fileData`/`mimeType`), VerificationResult, Score, Decision, AuditLog.
+- **`prisma/schema.prisma`** — Tender (with real bid facts: `documentDated`, `bidEndsAt`, `emdRequired`, `miiNote`, `mseNote`), ComplianceRequirement (tender-configurable rules, incl. `ruleConfig.notApplicable`), Bidder, Document (incl. uploaded `fileData`/`mimeType`), VerificationResult, Score, Decision, AuditLog.
 - **`src/lib/providers/`** — the provider-adapter layer (`types.ts` is the interface; `mock/`, `stub/`, `real/` are implementations; `registry.ts` maps `sourceType` → provider). Each result carries a `method` (`real` / `real+simulated` / `simulated` / `sandbox-probe`) that surfaces as the honesty tag on every requirement row.
 - **`src/lib/validation/`** — real government-specified identifier checks with unit tests: `pan.ts` (Income Tax PAN format + holder type), `gstin.ts` (structure + Mod-36 checksum + embedded-PAN match). `npm test` runs these against real published GSTINs.
 - **`src/lib/fixtures/`** — `registryFixtures.ts` (the simulated GST/PAN/Udyam/DPIIT/debarment tables) + `syntheticCompanies.ts` (a pool of ~13 synthetic companies shared across tenders 2–10, each shaped for one verification outcome; GSTINs computed with the real Mod-36 checksum).

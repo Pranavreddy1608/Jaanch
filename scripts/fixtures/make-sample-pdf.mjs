@@ -46,7 +46,7 @@ write('sample-local-content-certificate.pdf', [
   'LOCAL CONTENT CERTIFICATE',
   '',
   'This is to certify that the goods offered under bid',
-  'GEM/2026/B/7983771 contain 78% local content as computed per the',
+  'GEM/2026/B/7801588 contain 78% local content as computed per the',
   'Public Procurement (Make in India) Order 2017 and the DPIIT',
   'guidelines thereunder.',
   '',

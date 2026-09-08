@@ -61,7 +61,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         </Link>
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 card">
+      <div className="card flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
             {bidder.tender.referenceNo} · {bidder.tender.title}
