@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <div className="min-h-screen">
           <header className="border-b-2 border-chakra/15 bg-white">
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-4">
               <div className="flex items-center gap-3">
                 <ChakraWheel className="h-8 w-8 shrink-0 text-chakra" />
                 <div>
@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               )}
             </div>
           </header>
-          <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+          <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
         </div>
       </body>
     </html>

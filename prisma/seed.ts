@@ -138,10 +138,10 @@ interface SeedTender {
   organization: string;
   department: string;
   category: string;
-  // Bid start / publication date. Only tender 1's source document gives one
-  // (its "Bid Number ... dated 03-09-2026" line); the others we hold don't
-  // publish a start date, so they stay null rather than being guessed.
-  bidStartsAt: Date | null;
+  // The bid document's "Dated" field (issue date), taken verbatim from each
+  // source PDF. Not a submission-window start — GeM's window opens at the
+  // bid-publish moment and closes at bidEndsAt.
+  documentDated: Date;
   bidEndsAt: Date;
   emdRequired: boolean;
   emdNote: string | null;
@@ -159,8 +159,7 @@ const TENDERS: SeedTender[] = [
     organization: 'Centre for Development of Advanced Computing (C-DAC), Thiruvananthapuram',
     department: 'Ministry of Electronics & IT — Department of Electronics and Information Technology',
     category: 'Global Tender — GlobalTenderCategory (Q3)',
-    // Source bid document is "dated 03-09-2026"; no clock time published, so 00:00 IST.
-    bidStartsAt: new Date('2026-09-03T00:00:00+05:30'),
+    documentDated: new Date('2026-09-03T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-08T17:00:00+05:30'),
     emdRequired: false,
     emdNote: 'Not required. ePBG 5% of contract value, valid 14 months (State Bank of India).',
@@ -292,7 +291,7 @@ const TENDERS: SeedTender[] = [
     organization: 'Office of DG (ECS), CHESS Vignyanakancha, Hyderabad',
     department: 'Ministry of Defence — Department of Defence R&D (DRDO)',
     category: 'Defence R&D Equipment — Global Tender (Q3)',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-08-13T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-03T09:00:00+05:30'),
     emdRequired: true,
     emdNote: 'Required · INR 8,58,163 (also USD 8,977 / JPY 14,37,771 / EUR 7,790), State Bank of India. ePBG 5% / 6 months.',
@@ -326,7 +325,7 @@ const TENDERS: SeedTender[] = [
     organization: 'All India Institute of Medical Sciences (AIIMS), Bibinagar',
     department: 'Ministry of Health & Family Welfare — Department of Health & Family Welfare',
     category: 'Medical Equipment',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-08-06T00:00:00+05:30'),
     bidEndsAt: new Date('2026-08-28T15:00:00+05:30'),
     emdRequired: true,
     emdNote: 'Required · INR 85,000 (Bank of Baroda). ePBG 5% / 26 months.',
@@ -362,7 +361,7 @@ const TENDERS: SeedTender[] = [
     organization: 'Solid State Physics Laboratory (SSPL), Delhi',
     department: 'Ministry of Defence — Department of Defence R&D (DRDO)',
     category: 'Defence R&D Equipment — Global Tender (Q3)',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-07-27T00:00:00+05:30'),
     bidEndsAt: new Date('2026-08-24T13:00:00+05:30'),
     emdRequired: true,
     emdNote:
@@ -396,7 +395,7 @@ const TENDERS: SeedTender[] = [
     organization: 'ICAR — Indian Agricultural Research Institute (IARI), New Delhi',
     department: 'Ministry of Agriculture & Farmers Welfare — Department of Agricultural Research & Education (DARE)',
     category: 'Scientific / Laboratory Instruments',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-08-19T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-02T16:00:00+05:30'),
     emdRequired: true,
     emdNote: 'Required · INR 1,50,000 (State Bank of India). ePBG 5% / 26 months. Past-performance requirement: 50%.',
@@ -433,7 +432,7 @@ const TENDERS: SeedTender[] = [
     organization: 'All India Institute of Medical Sciences (AIIMS), Raipur',
     department: 'Ministry of Health & Family Welfare',
     category: 'Medical Equipment (Critical Care)',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-08-18T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-15T15:00:00+05:30'),
     emdRequired: true,
     emdNote: 'Required · INR 6,38,880 (Bank of India). ePBG 5% / 27 months. Past-performance requirement: 50%.',
@@ -469,7 +468,7 @@ const TENDERS: SeedTender[] = [
     organization: 'Office of DG (ECS), CHESS Vignyanakancha, Hyderabad',
     department: 'Ministry of Defence — Department of Defence R&D (DRDO)',
     category: 'Defence R&D — Optics / Metrology — Global Tender (Q3)',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-08-17T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-07T09:00:00+05:30'),
     emdRequired: true,
     emdNote: 'Required · INR 2,13,356 (also USD / JPY / EUR), State Bank of India. ePBG 5% / 5 months.',
@@ -502,7 +501,7 @@ const TENDERS: SeedTender[] = [
     organization: 'Municipal Corporation of Greater Mumbai (MCGM), Zone 1',
     department: 'Government of Maharashtra — Urban Local Body',
     category: 'Municipal Healthcare Equipment',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-08-24T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-03T12:00:00+05:30'),
     emdRequired: false,
     emdNote: 'Not required. ePBG: Not required. Bid offer validity: 30 days (unusually short). Past-performance requirement: 10%.',
@@ -535,7 +534,7 @@ const TENDERS: SeedTender[] = [
     organization: 'Municipal Corporation of Greater Mumbai (MCGM), Zone 1',
     department: 'Government of Maharashtra — Urban Local Body',
     category: 'Municipal Healthcare Equipment',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-09-01T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-11T16:00:00+05:30'),
     emdRequired: false,
     emdNote: 'Not required. Past-performance requirement: 10%.',
@@ -567,7 +566,7 @@ const TENDERS: SeedTender[] = [
     organization: 'North Eastern Indira Gandhi Regional Institute of Health & Medical Sciences (NEIGRIHMS), Shillong',
     department: 'Ministry of Health & Family Welfare',
     category: 'Medical Equipment',
-    bidStartsAt: null, // source data we hold gives only the bid-end time
+    documentDated: new Date('2026-08-17T00:00:00+05:30'),
     bidEndsAt: new Date('2026-09-14T14:00:00+05:30'),
     emdRequired: true,
     emdNote:
@@ -618,7 +617,7 @@ async function main() {
         organization: t.organization,
         department: t.department,
         category: t.category,
-        bidStartsAt: t.bidStartsAt,
+        documentDated: t.documentDated,
         bidEndsAt: t.bidEndsAt,
         emdRequired: t.emdRequired,
         emdNote: t.emdNote,

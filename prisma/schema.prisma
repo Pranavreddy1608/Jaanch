@@ -19,7 +19,7 @@ model Tender {
   category     String
   // Real bid facts, shown on the dashboard so the platform reflects the
   // actual tender rather than generic assumptions.
-  bidStartsAt  DateTime? // bid start / publication date/time (null when the source bid does not publish one)
+  documentDated DateTime? // the bid document's "Dated" field (issue date), as published
   bidEndsAt    DateTime? // bid closing date/time
   emdRequired  Boolean   @default(true)
   emdNote      String? // EMD / ePBG detail (amount, bank, duration) as published
