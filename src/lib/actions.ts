@@ -6,11 +6,17 @@ import { runVerificationForBidder } from './orchestrator';
 import { logAudit } from './auditLog';
 import { getSession } from './session';
 
+async function revalidateBidder(bidderId: string) {
+  const b = await prisma.bidder.findUnique({ where: { id: bidderId }, select: { tenderId: true } });
+  revalidatePath('/dashboard');
+  if (b) revalidatePath(`/tenders/${b.tenderId}`);
+  revalidatePath(`/bidders/${bidderId}`);
+}
+
 export async function runVerification(bidderId: string) {
   if (!bidderId) throw new Error('Missing bidder.');
   await runVerificationForBidder(bidderId);
-  revalidatePath('/dashboard');
-  revalidatePath(`/bidders/${bidderId}`);
+  await revalidateBidder(bidderId);
 }
 
 export type UploadState = { status: 'idle' } | { status: 'ok'; message: string } | { status: 'error'; message: string };
@@ -59,7 +65,7 @@ export async function uploadDocument(_prev: UploadState, formData: FormData): Pr
     });
 
     revalidatePath(`/bidders/${bidderId}`);
-    return { status: 'ok', message: `Uploaded ${file.name}. Re-run verification to extract it.` };
+    return { status: 'ok', message: `Uploaded ${file.name}. Re-run verification to check it.` };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : 'Upload failed.' };
   }
@@ -98,8 +104,7 @@ export async function recordDecision(_prev: DecisionState, formData: FormData): 
       details: { outcome, remarks },
     });
 
-    revalidatePath('/dashboard');
-    revalidatePath(`/bidders/${bidderId}`);
+    await revalidateBidder(bidderId);
     return { status: 'ok', message: `Decision recorded: ${outcome}.` };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : 'Could not record decision.' };

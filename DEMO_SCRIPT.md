@@ -7,7 +7,7 @@ for the Game Bar recorder, or OBS). Pre-recorded stills are in `../demo-evidence
 
 ```bash
 npm run dev            # http://localhost:3000
-npm run seed           # only if the data looks off — resets tender + 5 bidders
+npm run seed           # only if the data looks off — resets 10 tenders + 37 bidders
 ```
 
 - `.env.local` has `GEMINI_API_KEY` set → AI recommendations are live.
@@ -16,13 +16,15 @@ npm run seed           # only if the data looks off — resets tender + 5 bidder
   (`scripts/fixtures/sample-oem-authorization-letter.pdf` works) and any **irrelevant
   PDF/screenshot** for the negative case.
 
-The demo tender is a **real, live GeM bid — `GEM/2026/B/7983771`**, "Cyber Forensic
-Hardware and Software" (C-DAC Thiruvananthapuram / MeitY). Bid window closed
-08-09-2026 17:00; the dashboard shows an open/closed badge either way.
+`/dashboard` is a list of **10 real GeM bids** (C-DAC, DRDO, several AIIMS, ICAR-IARI, two
+MCGM Mumbai, NEIGRIHMS Shillong) with a live open/closed badge. The walkthrough runs on
+the flagship — **`GEM/2026/B/7983771`**, "Cyber Forensic Hardware and Software" (C-DAC
+Thiruvananthapuram / MeitY). All 37 bidders are synthetic.
 
-Stable demo profile (fixed across re-seeds): **Chennai 100 · Coastal 68 · Bharath 95 · Swift 50 · NovaTech 41**.
-Every HIGH-risk bidder is HIGH because of a *real* check failure (GSTIN checksum, PAN
-format, blacklist, or GST filing delay) — stub-backed checks only ever flag for review.
+Flagship demo profile (fixed across re-seeds): **Chennai 100 · Coastal 68 · Bharath 95 ·
+Swift 50 · NovaTech 41**. Every HIGH-risk bidder is HIGH because of a *real* check failure
+(GSTIN checksum, PAN format, blacklist, or GST filing delay) — stub-backed checks only
+ever flag for review.
 
 ---
 
@@ -34,23 +36,26 @@ format, blacklist, or GST filing delay) — stub-backed checks only ever flag fo
 > the cross-checking and hands the officer a scored, fully-auditable recommendation. The
 > officer still makes the call."
 
-## 2. Sign in (15s)
+## 2. Sign in + the tender list (25s)
 
-- Open `http://localhost:3000` → it redirects to **/sign-in**.
-- Name: your name. Role: **Procurement Officer**. Sign in.
+- Open `http://localhost:3000` → **/sign-in**. Name: your name. Role: **Procurement
+  Officer**. Sign in → the **tender list**.
 
-> "Every decision is tied to a signed-in, role-checked identity — that matters for the
-> audit trail. I'll show the Viewer role later."
+> "Every decision is tied to a signed-in, role-checked identity. The dashboard is 10 real
+> GeM bids — different ministries, different rules — each with an open/closed badge. A
+> judge can look any of these up. I'll work through the first one."
+
+- Click **Cyber Forensic Hardware and Software** (`GEM/2026/B/7983771`).
 
 ## 3. The tender + a clean pass — Chennai (50s)
 
-- Dashboard top card: this is **`GEM/2026/B/7983771`**, a real GeM bid — open/closed
-  badge, and the real bid facts: **EMD not required**, **MSE preference L1+15% up to 25%
-  of quantity**, **Make-in-India *not opted*** with the competent-authority reason
-  ("items not available domestically").
+- The tender card shows the real bid facts: **EMD not required**, **MSE preference L1+15%
+  up to 25% of quantity**, **Make-in-India *not opted*** with the competent-authority
+  reason ("items not available domestically", CA approval number on the card).
 
   > "The requirement checks below are configured to *this* tender — not generic
-  > assumptions. It's independently verifiable on the GeM portal."
+  > assumptions. Compare it to, say, the AIIMS ventilator bid, where Make-in-India *does*
+  > apply at 20% / 50%."
 
 - Click **Run Verification** on **Chennai Precision Engineering** → ~5–10s → **Details**.
 
@@ -73,7 +78,7 @@ Point at, in order:
 
 ## 4. The inconsistency catch — Bharath (40s)  ← the money shot
 
-- Back to dashboard → **Run Verification** on **Bharath MSME Febricators** → **Details**.
+- **← Back to tender** → **Run Verification** on **Bharath MSME Febricators** → **Details**.
 - Score **95, LOW RISK** — but the **AI Recommendation** and the **Udyam / MSME
   Registration** row (**NEEDS REVIEW**) both flag it:
 
@@ -147,9 +152,10 @@ letter … please check the file that was uploaded."* — not a silent MET.
 
 ## 9. Close — "what's real" (25s)
 
-> "We were deliberate about not faking verification. The **tender is a real, live GeM
-> bid** and the requirement set reflects *its* actual terms. **PAN and GST run the real
-> government algorithms** — the GSTIN Mod-36 checksum, tested against real published
+> "We were deliberate about not faking verification. All **10 tenders are real GeM bids**
+> — every bid number is verifiable on the portal — and each one's requirement set reflects
+> *its* actual terms, not a template. **PAN and GST run the real government algorithms** —
+> the GSTIN Mod-36 checksum, tested against real published
 > GSTINs; the PAN format + holder-type rules from the Income Tax spec. **OEM
 > authorization** is a real document-content check when a letter is uploaded. The
 > registration/simulated layers are labelled on every row. Udyam and blacklist are

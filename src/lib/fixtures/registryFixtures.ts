@@ -17,7 +17,13 @@
  * This file is imported by both the providers (src/lib/providers/mock/*)
  * and prisma/seed.ts, so the bidder rows created in the demo always line up
  * with the fixture data the providers will check them against.
+ *
+ * The hand-written entries below cover the flagship tender's five bidders.
+ * Entries for the synthetic-company pool that bids across tenders 2-10 are
+ * appended at the bottom from src/lib/fixtures/syntheticCompanies.ts.
  */
+
+import { SYNTHETIC_COMPANIES, companyGstin } from './syntheticCompanies';
 
 export interface UdyamRecord {
   enterpriseName: string;
@@ -120,4 +126,51 @@ export const dpiitLocalContentRegistry: Record<string, DpiitLocalContentRecord> 
   'bharath-msme-fabricators': { verifiedLocalContentPercent: 55, certifyingAgency: 'DPIIT Registered CA - K. Suresh & Co' },
   'swift-supplies-enterprises': { verifiedLocalContentPercent: 20, certifyingAgency: 'DPIIT Registered CA - Iyer & Associates' },
   // NovaTech has no DPIIT cross-check record on file.
+
+  // Cert-carrying bidders on tenders 3, 5, 6, 10 (keyed by their per-tender Bidder.key).
+  'coromandel-diagnostics-t3': { verifiedLocalContentPercent: 63, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
+  'nucleus-scientific-t5': { verifiedLocalContentPercent: 70, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
+  'apex-medtech-t6': { verifiedLocalContentPercent: 55, certifyingAgency: 'DPIIT Registered CA - Iyer & Associates' },
+  'coromandel-diagnostics-t10': { verifiedLocalContentPercent: 66, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
 };
+
+// --- Synthetic-company pool (tenders 2-10). One entry per identifier, from
+//     src/lib/fixtures/syntheticCompanies.ts. `const` on an object/array
+//     permits mutation; this runs once at module load, before any provider
+//     reads a table.
+for (const c of SYNTHETIC_COMPANIES) {
+  if (c.registered) {
+    if (c.udyamNumber) {
+      udyamRegistry[c.udyamNumber] = {
+        enterpriseName: c.name,
+        category: c.udyamCategory,
+        status: 'Active',
+        registeredOn: '2021-06-15',
+      };
+    }
+    if (!c.breakGstinChecksum && !c.gstinNull) {
+      const g = companyGstin(c);
+      if (g) {
+        gstRegistry[g] = {
+          legalName: c.name,
+          status: 'Active',
+          lastReturnPeriod: '2026-08',
+          returnFilingDelayMonths: c.gstFilingDelayMonths ?? 0,
+        };
+      }
+    }
+    panRegistry[c.pan] = {
+      holderName: c.name,
+      panStatus: 'Valid',
+      itFilingStatus: c.itFilingStatus ?? 'Filed',
+    };
+  }
+  if (c.blacklisted) {
+    blacklistRegistry.push({
+      matchValue: c.pan,
+      matchField: 'pan',
+      reason: c.blacklistReason ?? 'Debarred by a procuring ministry (simulated)',
+      debarredUntil: '2027-12-31',
+    });
+  }
+}

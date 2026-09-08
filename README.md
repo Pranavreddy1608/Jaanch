@@ -2,7 +2,22 @@
 
 AI-assisted decision-support platform for verifying bidder compliance in GeM procurement. Built for a 3-day, 2-person hackathon timeline — see `SIH26100_Problem_Analysis.md` (in the parent folder / sent earlier in chat) for the full problem analysis and the reasoning behind every architectural choice below.
 
-The demo is seeded with a **real, currently-live GeM tender — `GEM/2026/B/7983771`**, "Cyber Forensic Hardware and Software" (Centre for Development of Advanced Computing / MeitY, Thiruvananthapuram, published 03-09-2026). Every tender field in `prisma/seed.ts` is taken verbatim from the published bid document and is independently verifiable on the GeM portal — the requirement set (OEM Authorization mandatory, Make-in-India waived by competent-authority approval, MSE preference L1+15%, no EMD) reflects *that* tender, not generic assumptions. **Its bid window closes 08-09-2026 17:00 IST**, so after that it shows as closed on GeM; the dashboard shows an open/closed badge. The 5 bidders are synthetic.
+The demo is seeded with **10 real GeM bids** — every `referenceNo`, title, organisation, bid date, EMD / ePBG detail, and MSE / Make-in-India position in `prisma/seed.ts` is taken verbatim from the published bid document and is independently verifiable on the GeM portal:
+
+| # | Bid number | Title | Buyer |
+|---|---|---|---|
+| 1 | `GEM/2026/B/7983771` | Cyber Forensic Hardware and Software | C-DAC Thiruvananthapuram / MeitY *(flagship)* |
+| 2 | `GEM/2026/B/7829782` | High Repetition Rate Pulsed Laser Source | CHESS Hyderabad / DRDO |
+| 3 | `GEM/2026/B/7801588` | 3D intraoral scanner with software | AIIMS Bibinagar / MoHFW |
+| 4 | `GEM/2026/B/7815102` | Microwave Plasma Asher | SSPL Delhi / DRDO |
+| 5 | `GEM/2026/B/7827388` | GC Mass Spectrometer | ICAR-IARI New Delhi / MoA&FW |
+| 6 | `GEM/2026/B/7914955` | High end ICU Ventilators | AIIMS Raipur / MoHFW |
+| 7 | `GEM/2026/B/7917062` | Laser beam diameter & power measurement system | CHESS Hyderabad / DRDO |
+| 8 | `GEM/2026/B/7931202` | 300 mA X-ray machine with DR system | MCGM Mumbai, Zone 1 (state govt) |
+| 9 | `GEM/2026/B/7946979` | Retrofit Digital Radiography System | MCGM Mumbai, Zone 1 |
+| 10 | `GEM/2026/B/7922011` | Cavitron Ultrasonic Surgical Aspirator | NEIGRIHMS Shillong / MoHFW |
+
+Each tender's requirement set is configured to *that* bid, not generic assumptions — mandatory OEM Authorization where the bid lists it as a required document, MSE preference %/cap where MSE is offered, Make-in-India either carrying the real preference %/cap or marked `NOT APPLICABLE` with the real competent-authority waiver reference (`CDAC/CFSPR291/16714`, `DRDO/DFMM/MM/GTE/SSPL/2025-26/075`, ...), no EMD check where the bid needs no EMD. Several of these bids have already closed — the dashboard shows a live open/closed badge and doesn't hide them. **The 37 bidders across the 10 tenders are synthetic** (a shared pool defined in `src/lib/fixtures/syntheticCompanies.ts`), each shaped to exercise a particular verification outcome.
 
 ## The one thing to understand before reading the code
 
@@ -19,7 +34,7 @@ npm install
 cp .env.example .env.local   # then set GEMINI_API_KEY (free, recommended) — see below
 npx prisma generate
 npm run db:push              # creates dev.db (SQLite) from prisma/schema.prisma
-npm run seed                 # loads the real GEM/2026/B/7983771 tender + 5 synthetic bidders
+npm run seed                 # loads 10 real GeM tenders + 37 synthetic bidders
 npm test                     # PAN + GSTIN validators, checked against real published GSTINs
 npm run ai:check             # optional — verifies your LLM key works end to end
 npm run dev                  # http://localhost:3000
@@ -27,7 +42,7 @@ npm run dev                  # http://localhost:3000
 
 (`npm run setup` does all of the above except `dev` in one go.)
 
-Open `http://localhost:3000`. You'll be sent to `/sign-in` — enter any name and pick a role (**Procurement Officer** can record decisions; **Viewer** is read-only), then you land on `/dashboard`. Click **Run Verification** on any bidder, then **Details** to see the per-requirement breakdown, AI recommendation, and audit trail.
+Open `http://localhost:3000`. You'll be sent to `/sign-in` — enter any name and pick a role (**Procurement Officer** can record decisions; **Viewer** is read-only). `/dashboard` is the **tender list** (10 bids, open/closed badge, bidder count). Click a tender → `/tenders/[id]` shows that bid's info card + its bidders. **Run Verification** on a bidder, then **Details** for the per-requirement breakdown, AI recommendation, and audit trail.
 
 ### AI provider (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY`)
 
@@ -62,13 +77,14 @@ Per evaluator feedback, the identifier checks (PAN, GST) were moved from fixture
 - **`prisma/schema.prisma`** — Tender (with real bid facts: `bidEndsAt`, `emdRequired`, `miiNote`, `mseNote`), ComplianceRequirement (tender-configurable rules, incl. `ruleConfig.notApplicable`), Bidder, Document (incl. uploaded `fileData`/`mimeType`), VerificationResult, Score, Decision, AuditLog.
 - **`src/lib/providers/`** — the provider-adapter layer (`types.ts` is the interface; `mock/`, `stub/`, `real/` are implementations; `registry.ts` maps `sourceType` → provider). Each result carries a `method` (`real` / `real+simulated` / `simulated` / `sandbox-probe`) that surfaces as the honesty tag on every requirement row.
 - **`src/lib/validation/`** — real government-specified identifier checks with unit tests: `pan.ts` (Income Tax PAN format + holder type), `gstin.ts` (structure + Mod-36 checksum + embedded-PAN match). `npm test` runs these against real published GSTINs.
+- **`src/lib/fixtures/`** — `registryFixtures.ts` (the simulated GST/PAN/Udyam/DPIIT/debarment tables) + `syntheticCompanies.ts` (a pool of ~13 synthetic companies shared across tenders 2–10, each shaped for one verification outcome; GSTINs computed with the real Mod-36 checksum).
 - **`src/lib/rulesEngine.ts`** — deterministic, explainable eligibility logic (deliberately NOT a model — procurement decisions need to be auditable). Outcomes: `MET` / `NOT_MET` / `NEEDS_REVIEW` / `NOT_APPLICABLE` (the last set from the tender's `ruleConfig.notApplicable`, excluded from scoring).
 - **`src/lib/scoring.ts`** — turns rule outcomes into a 0–100 compliance score + LOW/MEDIUM/HIGH risk tier.
 - **`src/lib/ai/`** — `llm.ts` is a small provider layer (Gemini via REST / Claude via SDK / deterministic fallback; see *AI provider* above). `documentExtraction.ts` — `extractLocalContentCertificate` (OCR text), `extractLocalContentCertificateFromFile` and `extractOemAuthorizationFromFile` (uploaded PDF/image → multimodal call) — and `recommendation.ts` (plain-language PO summary) call through it. `npm run ai:check` (`scripts/check-ai.ts`) verifies the configured provider end to end.
 - **`src/lib/orchestrator.ts`** — runs the full pipeline for one bidder: extract documents → verify every requirement → evaluate rules → score → AI recommendation → persist everything with an audit-log entry at each step.
 - **`src/lib/session.ts` + `src/middleware.ts`** — signed-cookie sign-in (name + `officer`/`viewer` role, HMAC via `SESSION_SECRET`); middleware redirects anonymous visitors to `/sign-in`.
 - **`src/lib/actions.ts` / `src/lib/authActions.ts`** — Next.js Server Actions: `runVerification` (throws; `VerifyButton` catches), `uploadDocument` + `recordDecision` (`useFormState` shape, return a status object), `signIn` / `signOut`.
-- **`src/app/`** — `/sign-in`, Dashboard (bidder list + score/risk), bidder detail (per-requirement drill-down, AI recommendation, document upload + extracted fields, decision form, audit trail), plus `loading.tsx` skeletons, `error.tsx`, and a bidder `not-found.tsx`.
+- **`src/app/`** — `/sign-in`, `/dashboard` (tender list), `/tenders/[id]` (one bid's info card + bidder table + Verify buttons), `/bidders/[id]` (per-requirement drill-down, AI recommendation, document upload + extracted fields, decision form, audit trail), plus `loading.tsx` skeletons, `error.tsx`, and `not-found.tsx` for tender and bidder.
 
 ## What was built on top of the base pipeline
 
@@ -76,7 +92,7 @@ Per evaluator feedback, the identifier checks (PAN, GST) were moved from fixture
 - **Sign-in + roles** — signed-cookie identity; `recordDecision` enforces `role === 'officer'` server-side and attributes the decision to the signed-in name (no free-text officer field). Not a real auth system (no user store / password) — production would use the organisation's SSO.
 - **Demo hardening** — loading skeletons, an app-level error boundary, a friendly bidder not-found page, `VerifyButton` spinner + inline error, form pending/error/success states, dashboard empty state.
 - **AI provider layer** — Gemini (free) or Claude, with a deterministic fallback so a missing/rate-limited key never breaks the demo.
-- **Real tender data** — the demo tender is the live GeM bid `GEM/2026/B/7983771` (see top of this file). The requirement set is configured to *that* tender: OEM Authorization is mandatory (a required seller document), Udyam/MSME is non-mandatory (purchase-preference signal for a global tender, not a gate), Make-in-India is `NOT APPLICABLE` (waived by competent-authority approval), and there's no EMD check because the bid needs no EMD. The dashboard shows the real bid facts and an open/closed badge.
+- **10 real tenders + tender-list routing** — `/dashboard` is a tender list; each `/tenders/[id]` scopes to that bid's bidders. All 10 are real GeM bids (table at the top of this file); each one's requirement set, EMD status, MSE preference and Make-in-India position are configured from its published document. The requirement set for the flagship, e.g., makes OEM Authorization mandatory, Udyam/MSME non-mandatory (a purchase-preference signal, not a gate), and Make-in-India `NOT APPLICABLE` with the competent-authority waiver reference; other tenders vary (MII carrying a real 20%/50% preference, EMD in lakhs with a named bank, no exemption from the Class-1/Class-2 restriction, ...).
 
 ## Known gaps / genuine next steps
 

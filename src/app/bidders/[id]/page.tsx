@@ -56,8 +56,8 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
-          ← Back to dashboard
+        <Link href={`/tenders/${bidder.tenderId}`} className="text-sm text-slate-500 hover:underline">
+          ← Back to tender
         </Link>
       </div>
 

@@ -21,6 +21,7 @@ model Tender {
   // actual tender rather than generic assumptions.
   bidEndsAt    DateTime? // bid closing date/time
   emdRequired  Boolean   @default(true)
+  emdNote      String? // EMD / ePBG detail (amount, bank, duration) as published
   miiNote      String? // Make in India preference status for this tender
   mseNote      String? // MSE purchase-preference terms for this tender
   createdAt    DateTime                @default(now())
