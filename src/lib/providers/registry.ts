@@ -4,7 +4,8 @@ import { gstProvider } from './mock/gst';
 import { panProvider } from './mock/pan';
 import { blacklistProvider } from './mock/blacklist';
 import { makeInIndiaProvider } from './mock/makeInIndia';
-import { mca21Provider, epfoEsicProvider, nsicProvider, startupIndiaProvider, oemAuthorizationProvider } from './stub';
+import { oemAuthorizationProvider } from './mock/oemAuthorization';
+import { mca21Provider, epfoEsicProvider, nsicProvider, startupIndiaProvider } from './stub';
 import { digilockerProvider } from './real/digilocker';
 
 /**

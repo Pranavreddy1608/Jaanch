@@ -12,8 +12,9 @@ npm run seed           # only if the data looks off — resets tender + 5 bidder
 
 - `.env.local` has `GEMINI_API_KEY` set → AI recommendations are live.
 - Keep `USE_REAL_DIGILOCKER=false`.
-- Have one real-ish PDF certificate ready to upload (or use
-  `scripts/fixtures/sample-local-content-certificate.pdf` — it declares 78%).
+- For the upload demo, have ready: a plausible **OEM authorization letter**
+  (`scripts/fixtures/sample-oem-authorization-letter.pdf` works) and any **irrelevant
+  PDF/screenshot** for the negative case.
 
 The demo tender is a **real, live GeM bid — `GEM/2026/B/7983771`**, "Cyber Forensic
 Hardware and Software" (C-DAC Thiruvananthapuram / MeitY). Bid window closed
@@ -57,15 +58,16 @@ Point at, in order:
 - **100 / 100, LOW RISK**.
 - **AI Recommendation** — read the first sentence. Note the last line: *"the final
   qualification and award decision remains entirely your responsibility."*
-- **Requirement table** — each row has a plain-English reason and an honesty tag:
-  - **GST** and **PAN**: `REAL FORMAT + SIM. REGISTRY`. "These run the actual government
-    algorithms — the GSTIN Mod-36 checksum, the PAN format + holder-type rules — not a
-    lookup table. The registration layer on top is simulated, and the tag says so."
-  - **OEM Authorization**: mandatory for this tender (a required seller document).
-  - **Make in India — Local Content**: **`NOT APPLICABLE`** — "the buyer waived it; the
-    row shows the competent-authority approval number instead of silently enforcing a
-    rule the buyer dropped." It's excluded from the score.
-- **Documents** — the uploaded certificate with **AI-extracted fields**.
+- **Requirement table** — every row spells out *what was actually checked* + an honesty tag:
+  - **GST** and **PAN**: `REAL FORMAT + SIM. REGISTRY`. "The row says it: 'GSTIN structure
+    and Mod-36 checksum are valid (real check) — registration status is a simulated GSTN
+    lookup.' The real government algorithm runs; the registry layer on top is simulated."
+  - **OEM Authorization**: mandatory for this tender. With no document uploaded it's a
+    labelled stub — the row says so. (Section 7 uploads one and it becomes a real check.)
+  - **Blacklist / EPFO / DigiLocker**: each row states it's a simulated check.
+  - **Make in India — Local Content**: **`NOT APPLICABLE`** — "the buyer waived it; the row
+    shows the competent-authority approval number instead of silently enforcing a rule the
+    buyer dropped." Excluded from the score.
 - **Audit trail** — VERIFICATION_STARTED → per-requirement checks → SCORE_COMPUTED,
   timestamped.
 
@@ -109,16 +111,32 @@ Point at, in order:
 
 > "The AI never decides. The officer's call is a separate, explicit, logged action."
 
-## 7. Real document upload + extraction (40s)
+## 7. Real document check — OEM Authorization (50s)
 
-- Open any bidder → **Documents** → **Choose File** → pick your PDF certificate →
-  **Upload & extract**.
-- "The file goes straight to a multimodal model — no separate OCR step."
-- **Re-run Verification** → open the Documents section → the **AI-extracted fields** now
-  show the percentage and certifying agency pulled out of *your* uploaded file.
+Open Chennai → **Documents**. Two things to point at first:
+- The **Local Content Certificate** upload is greyed out: *"Make in India certification is
+  waived for this tender … uploads here won't affect this bidder's evaluation."* —
+  "the platform won't let you upload into a dead end."
+- The **OEM Authorization Certificate** upload is active — it's a required document for
+  this tender.
 
-> "Same extraction pipeline handles any certificate type — for a tender where Make-in-India
-> *does* apply, this feeds the local-content check directly."
+**Positive:** upload a real OEM authorization letter (or
+`scripts/fixtures/sample-oem-authorization-letter.pdf`) → **Re-run Verification** →
+the **OEM Authorization** row is **MET**, tag `REAL ALGORITHM`:
+*"Uploaded document reads as an OEM authorization letter from Falcon Forensics
+Instruments GmbH, authorising Chennai Precision Engineering Pvt Ltd."*
+
+> "This is a genuine document-content check — the model confirmed it reads as an OEM
+> letter and the authorised company matches the bidder. It does not verify the letter is
+> really from the OEM — there's no issuer to call, that stays a manual step."
+
+**Negative:** on another bidder, upload something irrelevant (a screenshot, a random PDF)
+as the OEM certificate → **Re-run Verification** → the row goes **NEEDS REVIEW**, tag
+`REAL ALGORITHM`: *"The uploaded document does not appear to be an OEM authorization
+letter … please check the file that was uploaded."* — not a silent MET.
+
+> "With no document uploaded, this falls back to a labelled simulated stub that can only
+> pass or flag for review. Same hybrid pattern as GST and PAN."
 
 ## 8. Viewer role — the guardrail (20s)
 
@@ -132,12 +150,14 @@ Point at, in order:
 > "We were deliberate about not faking verification. The **tender is a real, live GeM
 > bid** and the requirement set reflects *its* actual terms. **PAN and GST run the real
 > government algorithms** — the GSTIN Mod-36 checksum, tested against real published
-> GSTINs; the PAN format + holder-type rules from the Income Tax spec. The registration
-> layer on top is simulated and every row's tag says which is which. Udyam and blacklist
-> are simulated registry lookups on the real rules engine. DigiLocker is wired against
-> the real API but needs partner onboarding. The pipeline, the document AI, the audit
-> trail and the human decision are all real. Swapping any simulated source for a
-> production integration is a one-line change."
+> GSTINs; the PAN format + holder-type rules from the Income Tax spec. **OEM
+> authorization** is a real document-content check when a letter is uploaded. The
+> registration/simulated layers are labelled on every row. Udyam and blacklist are
+> simulated registry lookups on the real rules engine; DigiLocker is wired against the
+> real API but needs partner onboarding. A simulated check can never hard-fail a bidder —
+> only a real one can. The pipeline, the document AI, the audit trail and the human
+> decision are all real. Swapping any simulated source for a production integration is a
+> one-line change."
 
 ---
 

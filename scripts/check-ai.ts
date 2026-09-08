@@ -1,9 +1,10 @@
 /**
  * Verifies the configured LLM provider (Gemini or Claude) actually works,
- * end to end, for all three things the app uses it for:
- *   1. text extraction   (extractLocalContentCertificate)
- *   2. file extraction    (extractLocalContentCertificateFromFile - PDF)
- *   3. recommendation text (generateRecommendation)
+ * end to end, for the things the app uses it for:
+ *   1. text extraction        (extractLocalContentCertificate)
+ *   2. local-content PDF       (extractLocalContentCertificateFromFile)
+ *   3. OEM-letter PDF          (extractOemAuthorizationFromFile)
+ *   4. recommendation text     (generateRecommendation)
  *
  * Run after setting GEMINI_API_KEY (or ANTHROPIC_API_KEY) in .env.local:
  *   npm run ai:check
@@ -27,9 +28,8 @@ for (const file of ['.env', '.env.local']) {
 
 async function main() {
   const { llmProvider } = await import('../src/lib/ai/llm');
-  const { extractLocalContentCertificate, extractLocalContentCertificateFromFile } = await import(
-    '../src/lib/ai/documentExtraction'
-  );
+  const { extractLocalContentCertificate, extractLocalContentCertificateFromFile, extractOemAuthorizationFromFile } =
+    await import('../src/lib/ai/documentExtraction');
   const { generateRecommendation } = await import('../src/lib/ai/recommendation');
 
   const provider = llmProvider();
@@ -56,7 +56,18 @@ async function main() {
     `${JSON.stringify(p)} ${provider === 'none' ? '(expected null - no provider)' : '(expected 78)'}`,
   );
 
-  // 3. recommendation
+  // 3. OEM authorization letter — plausibility + name extraction
+  const oemPdf = fs.readFileSync(path.join(__dirname, 'fixtures', 'sample-oem-authorization-letter.pdf'));
+  const oem = await extractOemAuthorizationFromFile(oemPdf.toString('base64'), 'application/pdf');
+  check(
+    'OEM letter extraction',
+    provider === 'none'
+      ? oem.looksLikeOemAuthLetter === null
+      : oem.looksLikeOemAuthLetter === true && /chennai precision/i.test(oem.authorizedBidderName ?? ''),
+    `${JSON.stringify(oem)}`,
+  );
+
+  // 4. recommendation
   const r = await generateRecommendation({
     bidderName: 'Coastal Traders & Co',
     complianceScore: 62,

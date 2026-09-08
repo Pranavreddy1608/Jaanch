@@ -116,5 +116,8 @@ export function evaluateRequirement(params: {
     }
   }
 
-  return { code, label, mandatory, sourceStatus: status, outcome: 'MET', reason: 'Verified and within tender-specific thresholds.' };
+  // MET - surface the provider's own note (what it actually checked) when it
+  // has one, so every passing row still explains itself; generic otherwise.
+  const metReason = typeof raw.note === 'string' && raw.note.trim() ? raw.note : 'Verified and within tender-specific thresholds.';
+  return { code, label, mandatory, sourceStatus: status, outcome: 'MET', reason: metReason };
 }

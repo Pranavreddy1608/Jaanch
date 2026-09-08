@@ -5,7 +5,9 @@ import { computeScore } from './scoring';
 import {
   extractLocalContentCertificate,
   extractLocalContentCertificateFromFile,
+  extractOemAuthorizationFromFile,
   type LocalContentExtraction,
+  type OemAuthorizationExtraction,
 } from './ai/documentExtraction';
 import { generateRecommendation } from './ai/recommendation';
 import { logAudit } from './auditLog';
@@ -28,22 +30,29 @@ export async function runVerificationForBidder(bidderId: string) {
   // Step 1: run AI extraction on any document that hasn't been processed yet.
   for (const doc of bidder.documents) {
     if (doc.extractedData) continue;
-    if (doc.docType !== 'LOCAL_CONTENT_CERTIFICATE') continue;
 
-    // Two input paths, same extraction contract: a real uploaded file goes
-    // straight to a multimodal Claude call; a seeded document falls back to
-    // its simulated-OCR text.
-    let extracted: LocalContentExtraction;
-    let extractionSource: 'uploaded-file' | 'ocr-text';
-    if (doc.fileData && doc.mimeType) {
-      extracted = await extractLocalContentCertificateFromFile(Buffer.from(doc.fileData).toString('base64'), doc.mimeType);
-      extractionSource = 'uploaded-file';
-    } else if (doc.rawText) {
-      extracted = await extractLocalContentCertificate(doc.rawText);
-      extractionSource = 'ocr-text';
-    } else {
-      continue;
+    const asFile = doc.fileData && doc.mimeType ? Buffer.from(doc.fileData).toString('base64') : null;
+    let extracted: LocalContentExtraction | OemAuthorizationExtraction | null = null;
+    let extractionSource: 'uploaded-file' | 'ocr-text' | null = null;
+
+    if (doc.docType === 'LOCAL_CONTENT_CERTIFICATE') {
+      // A real uploaded file goes straight to a multimodal call; a seeded
+      // document falls back to its simulated-OCR text. Same extraction shape.
+      if (asFile) {
+        extracted = await extractLocalContentCertificateFromFile(asFile, doc.mimeType!);
+        extractionSource = 'uploaded-file';
+      } else if (doc.rawText) {
+        extracted = await extractLocalContentCertificate(doc.rawText);
+        extractionSource = 'ocr-text';
+      }
+    } else if (doc.docType === 'OEM_AUTHORIZATION_CERTIFICATE') {
+      if (asFile) {
+        extracted = await extractOemAuthorizationFromFile(asFile, doc.mimeType!);
+        extractionSource = 'uploaded-file';
+      }
     }
+
+    if (!extracted || !extractionSource) continue;
 
     await prisma.document.update({ where: { id: doc.id }, data: { extractedData: JSON.stringify(extracted) } });
     await logAudit({

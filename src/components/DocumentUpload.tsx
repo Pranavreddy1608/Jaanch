@@ -22,12 +22,26 @@ export function DocumentUpload({
   bidderId,
   docType = 'LOCAL_CONTENT_CERTIFICATE',
   label = 'Local Content Certificate',
+  disabled = false,
+  disabledNote,
 }: {
   bidderId: string;
   docType?: string;
   label?: string;
+  /** e.g. the tender waived this requirement — uploading would be a dead end. */
+  disabled?: boolean;
+  disabledNote?: string;
 }) {
   const [state, formAction] = useFormState(uploadDocument, INITIAL);
+
+  if (disabled) {
+    return (
+      <div className="space-y-1 rounded-md border border-dashed border-slate-200 bg-slate-50 p-3">
+        <p className="text-xs font-medium text-slate-500">Upload {label} — not accepted for this tender</p>
+        <p className="text-xs text-slate-500">{disabledNote}</p>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="space-y-2 rounded-md border border-dashed border-slate-300 p-3">

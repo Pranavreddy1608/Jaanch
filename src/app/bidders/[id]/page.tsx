@@ -16,7 +16,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   const bidder = await prisma.bidder.findUnique({
     where: { id: params.id },
     include: {
-      tender: true,
+      tender: { include: { requirements: true } },
       // Exclude fileData (raw bytes) - the page only needs metadata + extracted fields.
       documents: {
         select: { id: true, docType: true, fileName: true, mimeType: true, rawText: true, extractedData: true },
@@ -41,6 +41,17 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   for (const vr of bidder.verificationResults) {
     if (!methodByCode.has(vr.requirementCode)) methodByCode.set(vr.requirementCode, vr.method);
   }
+
+  // Is the Make-in-India local-content requirement waived for this tender?
+  // If so, uploading a local-content certificate here is a dead end.
+  const miiReq = bidder.tender.requirements.find((r) => r.code === 'MAKE_IN_INDIA_LOCAL_CONTENT');
+  let miiWaived = false;
+  try {
+    miiWaived = miiReq ? JSON.parse(miiReq.ruleConfig)?.notApplicable === true : false;
+  } catch {
+    /* keep false */
+  }
+  const oemRequired = bidder.tender.requirements.some((r) => r.code === 'OEM_AUTHORIZATION' && r.mandatory);
 
   return (
     <div className="space-y-6">
@@ -106,8 +117,21 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
 
       <div className="rounded-lg border bg-white p-5">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Documents</h3>
-        <div className="mb-4">
-          <DocumentUpload bidderId={bidder.id} />
+        <div className="mb-4 space-y-3">
+          {oemRequired && (
+            <DocumentUpload
+              bidderId={bidder.id}
+              docType="OEM_AUTHORIZATION_CERTIFICATE"
+              label="OEM Authorization Certificate"
+            />
+          )}
+          <DocumentUpload
+            bidderId={bidder.id}
+            docType="LOCAL_CONTENT_CERTIFICATE"
+            label="Local Content Certificate"
+            disabled={miiWaived}
+            disabledNote="Make in India certification is waived for this tender (competent-authority approval on file) — uploads here won't affect this bidder's evaluation."
+          />
         </div>
         {bidder.documents.length === 0 ? (
           <p className="text-sm text-slate-500">No documents on file yet.</p>
