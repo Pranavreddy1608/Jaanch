@@ -5,3 +5,12 @@
 body {
   @apply bg-slate-50 text-slate-900;
 }
+
+@layer components {
+  /* Shared content-block style — soft corners, hairline border, gentle lift.
+     Cards sit directly on the bg-slate-50 page. Utilities added after `card`
+     in a className (e.g. `card p-0`, `card p-6`) override these defaults. */
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
+  }
+}

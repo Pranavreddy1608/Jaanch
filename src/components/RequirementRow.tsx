@@ -1,3 +1,5 @@
+import { CheckIcon, DotIcon, DashIcon } from './icons';
+
 interface Props {
   label: string;
   mandatory: boolean;
@@ -7,11 +9,20 @@ interface Props {
   method?: string;
 }
 
+// Colour-to-status mapping unchanged from pass 1 — green/red/amber/gray.
+// Pass 2 adds a leading glyph and rounds the pill only.
 const outcomeStyles: Record<Props['outcome'], string> = {
   MET: 'bg-green-100 text-green-800',
   NOT_MET: 'bg-red-100 text-red-800',
   NEEDS_REVIEW: 'bg-amber-100 text-amber-800',
   NOT_APPLICABLE: 'bg-slate-100 text-slate-500',
+};
+
+const outcomeIcons: Record<Props['outcome'], JSX.Element> = {
+  MET: <CheckIcon />,
+  NOT_MET: <DotIcon />,
+  NEEDS_REVIEW: <DotIcon />,
+  NOT_APPLICABLE: <DashIcon />,
 };
 
 // How the check was actually produced - shown so judges can see which
@@ -34,7 +45,10 @@ export function RequirementRow({ label, mandatory, outcome, reason, method }: Pr
         {mandatory && <div className="text-xs text-slate-500">Mandatory</div>}
       </td>
       <td className="py-3 pr-4 align-top">
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${outcomeStyles[outcome]}`}>{outcome.replace('_', ' ')}</span>
+        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${outcomeStyles[outcome]}`}>
+          {outcomeIcons[outcome]}
+          {outcome.replace('_', ' ')}
+        </span>
       </td>
       <td className="py-3 align-top text-sm text-slate-600">
         {reason}

@@ -11,7 +11,7 @@ export default async function DashboardPage() {
 
   if (tenders.length === 0) {
     return (
-      <div className="rounded-lg border bg-white p-6">
+      <div className="card p-6">
         <h2 className="text-lg font-semibold">No tenders loaded</h2>
         <p className="mt-1 text-sm text-slate-600">
           Run <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">npm run seed</code> to load the demo tenders.
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-500">
             <tr>

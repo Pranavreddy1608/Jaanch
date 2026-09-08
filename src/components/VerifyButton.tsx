@@ -25,7 +25,7 @@ export function VerifyButton({ bidderId, label = 'Run Verification' }: { bidderI
         type="button"
         disabled={isPending}
         onClick={handleClick}
-        className="inline-flex items-center gap-1.5 rounded-md bg-chakra px-3 py-1.5 text-sm font-medium text-white hover:bg-chakra-700 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-md bg-saffron-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-saffron-800 disabled:opacity-50"
       >
         {isPending && (
           <span

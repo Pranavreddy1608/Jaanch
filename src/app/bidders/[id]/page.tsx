@@ -61,7 +61,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         </Link>
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 rounded-lg border bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4 card">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
             {bidder.tender.referenceNo} · {bidder.tender.title}
@@ -84,7 +84,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
       </div>
 
       {latestScore && (
-        <div className="rounded-lg border bg-white p-5">
+        <div className="card">
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">AI Recommendation</h3>
           <p className="whitespace-pre-line text-sm text-slate-800">{latestScore.aiRecommendation}</p>
           <p className="mt-2 text-xs text-slate-400">
@@ -93,7 +93,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         </div>
       )}
 
-      <div className="rounded-lg border bg-white p-5">
+      <div className="card">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Requirement-by-Requirement Status</h3>
         {evaluations.length === 0 ? (
           <p className="text-sm text-slate-500">No verification run yet — click &quot;Run Verification&quot; above.</p>
@@ -115,7 +115,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         )}
       </div>
 
-      <div className="rounded-lg border bg-white p-5">
+      <div className="card">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Documents</h3>
         <div className="mb-4 space-y-3">
           {oemRequired && (
@@ -168,7 +168,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
           canRecord={session?.role === 'officer'}
         />
 
-        <div className="rounded-lg border bg-white p-4">
+        <div className="card">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Decision History</h3>
           {bidder.decisions.length === 0 ? (
             <p className="text-sm text-slate-500">No decision recorded yet.</p>
@@ -188,7 +188,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white p-5">
+      <div className="card">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Audit Trail (most recent 20)</h3>
         <ul className="space-y-1 text-xs text-slate-500">
           {bidder.auditLogs.map((log) => (

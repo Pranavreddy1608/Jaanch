@@ -33,7 +33,7 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
         </Link>
       </div>
 
-      <div className="rounded-lg border bg-white p-4">
+      <div className="card">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{tender.referenceNo}</p>
@@ -80,7 +80,7 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-500">
             <tr>

@@ -9,7 +9,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+    <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-red-900">Something went wrong</h2>
       <p className="mt-1 text-sm text-red-800">
         The page hit an unexpected error. This is a demo build — the pipeline itself falls back safely, so retrying
@@ -21,7 +21,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
       <div className="mt-4 flex gap-2">
         <button
           onClick={reset}
-          className="rounded-md bg-chakra px-3 py-1.5 text-sm font-medium text-white hover:bg-chakra-700"
+          className="rounded-md bg-saffron-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-saffron-800"
         >
           Try again
         </button>

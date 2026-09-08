@@ -2,7 +2,7 @@ export default function DashboardLoading() {
   return (
     <div className="space-y-6">
       <div className="h-10 w-64 animate-pulse rounded bg-slate-200" />
-      <div className="overflow-hidden rounded-lg border bg-white">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="h-10 bg-slate-100" />
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="flex items-center gap-4 border-t px-4 py-3.5">
