@@ -93,13 +93,6 @@ const miiWaived = (waiverBasis: string) => ({
   mandatory: false,
   ruleConfig: JSON.stringify({ notApplicable: true, waiverBasis, minLocalContentPercent: 50, tolerancePercent: 5 }),
 });
-const miiNotOffered = (basis: string) => ({
-  code: 'MAKE_IN_INDIA_LOCAL_CONTENT',
-  label: 'Make in India — Local Content',
-  sourceType: 'makeInIndia',
-  mandatory: false,
-  ruleConfig: JSON.stringify({ minLocalContentPercent: 50, tolerancePercent: 5, basis }),
-});
 
 // --- Bidder builders -----------------------------------------------------
 
@@ -508,8 +501,8 @@ const TENDERS: SeedTender[] = [
       blacklistReq,
       oemReq,
       udyamNoMse,
-      miiNotOffered(
-        'MII Purchase Preference = No for this tender. No competent-authority waiver document was cited in the bid; local-content preference does not apply.',
+      miiWaived(
+        'Not applicable to this tender. MII Purchase Preference = No for this tender — no local-content preference is offered, so no Local Content Certificate is required. (Unlike tenders 1/2/4, this is not a Competent Authority waiver of an otherwise-applicable requirement; MII preference was simply not invoked.)',
       ),
       epfoReq,
       digilockerReq,
@@ -540,8 +533,8 @@ const TENDERS: SeedTender[] = [
       blacklistReq,
       oemReq,
       udyamNoMse,
-      miiNotOffered(
-        'MII Purchase Preference = No for this tender. No competent-authority waiver document was cited in the bid; local-content preference does not apply.',
+      miiWaived(
+        'Not applicable to this tender. MII Purchase Preference = No for this tender — no local-content preference is offered, so no Local Content Certificate is required. (Unlike tenders 1/2/4, this is not a Competent Authority waiver of an otherwise-applicable requirement; MII preference was simply not invoked.)',
       ),
       epfoReq,
       digilockerReq,
