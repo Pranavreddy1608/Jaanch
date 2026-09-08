@@ -21,7 +21,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
       <div className="mt-4 flex gap-2">
         <button
           onClick={reset}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+          className="rounded-md bg-chakra px-3 py-1.5 text-sm font-medium text-white hover:bg-chakra-700"
         >
           Try again
         </button>

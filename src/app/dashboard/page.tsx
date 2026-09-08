@@ -49,7 +49,7 @@ export default async function DashboardPage() {
               return (
                 <tr key={t.id} className="border-t align-top">
                   <td className="px-4 py-3">
-                    <Link href={`/tenders/${t.id}`} className="font-medium text-slate-900 hover:underline">
+                    <Link href={`/tenders/${t.id}`} className="font-medium text-slate-900 hover:text-chakra hover:underline">
                       {t.title}
                     </Link>
                     <div className="text-xs text-slate-400">{t.referenceNo}</div>

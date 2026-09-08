@@ -1,7 +1,7 @@
 const styles: Record<string, string> = {
-  LOW: 'bg-green-100 text-green-800',
-  MEDIUM: 'bg-amber-100 text-amber-800',
-  HIGH: 'bg-red-100 text-red-800',
+  LOW: 'bg-green-100 text-indiagreen-700', // flag green — same visual weight as green-800
+  MEDIUM: 'bg-amber-100 text-amber-800', // caution — universal, not brand
+  HIGH: 'bg-red-100 text-red-800', // danger — universal, not brand
 };
 
 export function RiskBadge({ level }: { level: string | null }) {

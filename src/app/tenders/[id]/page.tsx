@@ -28,7 +28,7 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
+        <Link href="/dashboard" className="text-sm text-slate-500 hover:text-chakra hover:underline">
           ← Back to dashboard
         </Link>
       </div>
@@ -98,7 +98,7 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
               return (
                 <tr key={bidder.id} className="border-t">
                   <td className="px-4 py-3">
-                    <Link href={`/bidders/${bidder.id}`} className="font-medium text-slate-900 hover:underline">
+                    <Link href={`/bidders/${bidder.id}`} className="font-medium text-slate-900 hover:text-chakra hover:underline">
                       {bidder.name}
                     </Link>
                   </td>
@@ -112,7 +112,7 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <VerifyButton bidderId={bidder.id} label={latestScore ? 'Re-verify' : 'Run Verification'} />
-                      <Link href={`/bidders/${bidder.id}`} className="text-sm font-medium text-slate-600 hover:underline">
+                      <Link href={`/bidders/${bidder.id}`} className="text-sm font-medium text-slate-600 hover:text-chakra hover:underline">
                         Details →
                       </Link>
                     </div>

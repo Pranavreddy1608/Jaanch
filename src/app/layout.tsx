@@ -14,14 +14,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        {/* Tiranga accent strip — the only place actual saffron/white/green bands appear. */}
+        <div className="flex h-1 w-full" aria-hidden="true">
+          <div className="flex-1 bg-saffron" />
+          <div className="flex-1 border-x border-slate-200 bg-white" />
+          <div className="flex-1 bg-indiagreen" />
+        </div>
         <div className="min-h-screen">
-          <header className="border-b bg-white">
+          <header className="border-b-2 border-chakra/15 bg-white">
             <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-3 px-6 py-4">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-saffron-700">
                   Government e-Marketplace · Procurement Officer Console
                 </p>
-                <h1 className="text-xl font-semibold">GeM Bid Compliance Verification Platform</h1>
+                <h1 className="text-xl font-semibold text-slate-900">GeM Bid Compliance Verification Platform</h1>
               </div>
               {session && (
                 <div className="text-right text-xs text-slate-500">
