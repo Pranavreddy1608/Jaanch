@@ -19,7 +19,9 @@ The demo tender is a **real, live GeM bid — `GEM/2026/B/7983771`**, "Cyber For
 Hardware and Software" (C-DAC Thiruvananthapuram / MeitY). Bid window closed
 08-09-2026 17:00; the dashboard shows an open/closed badge either way.
 
-Stable demo profile (fixed across re-seeds): **Chennai 100 · Coastal 59 · Bharath 95 · Swift 50 · NovaTech 27**.
+Stable demo profile (fixed across re-seeds): **Chennai 100 · Coastal 68 · Bharath 95 · Swift 50 · NovaTech 41**.
+Every HIGH-risk bidder is HIGH because of a *real* check failure (GSTIN checksum, PAN
+format, blacklist, or GST filing delay) — stub-backed checks only ever flag for review.
 
 ---
 

@@ -23,13 +23,21 @@ function makeStubProvider(key: string, roadmapNote: string): VerificationProvide
     key,
     async verify({ bidder }): Promise<VerificationResultPayload> {
       const roll = hashToUnit(`${bidder.key}:${key}`);
-      const status: VerificationResultPayload['status'] = roll > 0.85 ? 'VERIFIED_FAIL' : 'VERIFIED_OK';
+      // A stub has no live registry to check against, so it must never
+      // assert a hard failure. The "unclear" branch flags for manual PO
+      // review (INCONSISTENT -> NEEDS_REVIEW in the rules engine, regardless
+      // of whether the requirement is mandatory) rather than scoring a
+      // bidder down on a coin flip.
+      const status: VerificationResultPayload['status'] = roll > 0.85 ? 'INCONSISTENT' : 'VERIFIED_OK';
       return {
         status,
         confidence: 0.5,
         isMock: true,
         raw: {
-          note: `Stub provider - production integration requires ${roadmapNote}. This result is a labelled simulation, not a live check.`,
+          note:
+            status === 'INCONSISTENT'
+              ? `Simulated data - no live registry to verify against (production integration requires ${roadmapNote}). Flagged for manual document review, not a verified failure.`
+              : `Stub provider - production integration requires ${roadmapNote}. This result is a labelled simulation, not a live check.`,
         },
       };
     },
