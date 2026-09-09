@@ -4,7 +4,9 @@ import type { NextRequest } from 'next/server';
 // Keep in sync with SESSION_COOKIE in src/lib/session.ts (middleware runs on
 // the Edge runtime and can't import that module's node:crypto dependency).
 const SESSION_COOKIE = 'gem_session';
-const PUBLIC_PATHS = ['/sign-in'];
+// /admin/import is the backstage dataset-import tool - deliberately outside the
+// officer/viewer/bidder session model, gated by its own ADMIN_IMPORT_SECRET.
+const PUBLIC_PATHS = ['/sign-in', '/admin'];
 
 /**
  * Gate: an unauthenticated visitor loading a page is sent to /sign-in. This

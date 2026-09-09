@@ -623,6 +623,10 @@ async function main() {
   await prisma.bidder.deleteMany();
   await prisma.complianceRequirement.deleteMany();
   await prisma.tender.deleteMany();
+  await prisma.importBatch.deleteMany(); // Tender FKs to ImportBatch, so after tenders
+
+  // (Re-seeding gives the demo a clean baseline: 10 originally-seeded tenders,
+  //  no import batches. Dataset imports happen via /admin/import afterwards.)
 
   let bidderCount = 0;
   for (const t of TENDERS) {

@@ -75,3 +75,36 @@ write('sample-oem-authorization-letter.pdf', [
   'For Falcon Forensics Instruments GmbH',
   'Authorised Signatory - Global Channel Sales',
 ]);
+
+// A stand-in GeM bid document for the /admin/import tool test. The real
+// organizer PDFs are not in this repo; the field values below match
+// prisma/seed.ts tender 1 (GEM/2026/B/7983771) verbatim so extraction can be
+// checked against the seed.
+write('sample-tender-GEM-2026-B-7983771.pdf', [
+  'GOVERNMENT E-MARKETPLACE (GeM) - BID DOCUMENT',
+  '',
+  'Bid Number / RFP No: GEM/2026/B/7983771',
+  'Dated: 03-09-2026',
+  '',
+  'Item / Work Title: Cyber Forensic Hardware and Software',
+  'Ministry/Department: Ministry of Electronics & IT - Department of',
+  '   Electronics and Information Technology',
+  'Organisation Name: Centre for Development of Advanced Computing',
+  '   (C-DAC), Thiruvananthapuram',
+  'Bid Category: Global Tender - GlobalTenderCategory (Q3)',
+  '',
+  'Bid End Date/Time: 08-09-2026 17:00:00',
+  'Bid Opening Date/Time: 08-09-2026 17:30:00',
+  '',
+  'EMD: Not required. ePBG 5% of contract value, valid 14 months',
+  '   (State Bank of India).',
+  '',
+  'MSE Purchase Preference: Yes - MSE OEMs / Service Providers get',
+  '   preference up to price within L1+15%, for up to 25% of bid quantity.',
+  '   Startups (DPIIT-registered) are relaxed from the experience criteria.',
+  '',
+  'Make in India Purchase Preference: NOT opted. Competent Authority',
+  '   (Dr. Parameswaran Nampoothiri V, Section Head Purchase, C-DAC)',
+  '   approved a Global Tender on 01-09-2026 - the tendered items are not',
+  '   available domestically. CA Approval CDAC/CFSPR291/16714.',
+]);

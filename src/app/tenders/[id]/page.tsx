@@ -16,6 +16,7 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
   const tender = await prisma.tender.findUnique({
     where: { id: params.id },
     include: {
+      importBatch: { select: { id: true, filename: true, processedAt: true } },
       bidders: {
         // A bidder only ever sees their own row - scoped on the query, not hidden.
         where: isBidder ? { companySlug: session!.companySlug } : undefined,
@@ -108,10 +109,24 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
             </div>
           )}
         </dl>
-        <p className="mt-2 text-[11px] text-slate-400">
-          Real, independently verifiable GeM bid ({tender.referenceNo}).{' '}
-          {isBidder ? 'The row below is your bid.' : 'Bidders below are synthetic.'}
-        </p>
+        {tender.importBatch ? (
+          <p className="mt-2 text-[11px] text-slate-500">
+            Imported from <span className="font-medium">{tender.importBatch.filename}</span> on{' '}
+            {new Date(tender.importBatch.processedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {' · '}
+            <a
+              href={`/api/import-batches/${tender.importBatch.id}/download`}
+              className="text-chakra hover:underline"
+            >
+              download source file
+            </a>
+          </p>
+        ) : (
+          <p className="mt-2 text-[11px] text-slate-400">
+            Real, independently verifiable GeM bid ({tender.referenceNo}).{' '}
+            {isBidder ? 'The row below is your bid.' : 'Bidders below are synthetic.'}
+          </p>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">

@@ -31,6 +31,29 @@ model Tender {
   createdAt    DateTime                @default(now())
   requirements ComplianceRequirement[]
   bidders      Bidder[]
+
+  // Set when this tender came from a dataset file imported via /admin/import.
+  // null for the originally-seeded tenders.
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  @@index([importBatchId])
+}
+
+// One row per dataset file processed through /admin/import. The file bytes
+// stay in the "dataset-uploads" Supabase Storage bucket - this row only
+// records the provenance (which file, when, by whom, what it produced).
+model ImportBatch {
+  id             String   @id @default(cuid())
+  filename       String
+  storagePath    String // path within the "dataset-uploads" Supabase Storage bucket
+  mimeType       String
+  mode           String // 'add' | 'replace-all'
+  processedBy    String
+  processedAt    DateTime @default(now())
+  recordsCreated Int
+  summary        String?
+  tenders        Tender[]
 }
 
 // One row per statutory/eligibility check a tender requires.

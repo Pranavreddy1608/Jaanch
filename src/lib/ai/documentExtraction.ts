@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx';
 import { llmComplete, hasLLM } from './llm';
 
 export interface LocalContentExtraction {
@@ -154,4 +155,207 @@ export async function extractOemAuthorizationFromFile(
     console.warn('[ai] OEM-letter extraction failed, returning null verdict:', err instanceof Error ? err.message : err);
     return empty;
   }
+}
+
+// --- Dataset import: tender PDF -----------------------------------------
+// Used by the backstage /admin/import tool. HARD RULE: a field that is not
+// clearly and explicitly stated in the source document is returned as null.
+// Never guess, never infer from context. This app's whole pitch is honesty
+// about what is real vs. simulated - a fabricated field breaks that directly.
+
+export interface TenderExtraction {
+  referenceNo: string | null;
+  title: string | null;
+  organization: string | null;
+  department: string | null;
+  category: string | null;
+  documentDated: string | null; // ISO date string, or null
+  bidEndsAt: string | null; // ISO datetime string, or null
+  emdRequired: boolean | null;
+  emdNote: string | null;
+  miiNote: string | null;
+  mseNote: string | null;
+}
+
+export const EMPTY_TENDER_EXTRACTION: TenderExtraction = {
+  referenceNo: null,
+  title: null,
+  organization: null,
+  department: null,
+  category: null,
+  documentDated: null,
+  bidEndsAt: null,
+  emdRequired: null,
+  emdNote: null,
+  miiNote: null,
+  mseNote: null,
+};
+
+const TENDER_INSTRUCTION =
+  'You are reading a Government e-Marketplace (GeM) bid / tender document. Extract ONLY fields that are ' +
+  'explicitly and unambiguously stated in the document. If a field is not clearly stated, return null for it - ' +
+  'do NOT guess, infer, or fill from typical values. Respond with ONLY a JSON object of this exact shape ' +
+  '(no other text):\n' +
+  '{\n' +
+  '  "referenceNo": string|null,      // the GeM bid number, e.g. "GEM/2026/B/7983771"\n' +
+  '  "title": string|null,            // the item / work title\n' +
+  '  "organization": string|null,     // buying organisation / office\n' +
+  '  "department": string|null,       // ministry + department\n' +
+  '  "category": string|null,         // bid category / GeM category as printed\n' +
+  '  "documentDated": string|null,    // the document\'s "Dated" field, as ISO date "YYYY-MM-DD"\n' +
+  '  "bidEndsAt": string|null,        // bid end / closing date-time, ISO "YYYY-MM-DDTHH:MM:SS+05:30"\n' +
+  '  "emdRequired": boolean|null,     // true if EMD is required, false if the doc says not required, null if unstated\n' +
+  '  "emdNote": string|null,          // verbatim EMD / ePBG detail (amount, bank, duration)\n' +
+  '  "miiNote": string|null,          // verbatim Make in India purchase-preference position\n' +
+  '  "mseNote": string|null           // verbatim MSE purchase-preference position\n' +
+  '}';
+
+function parseTenderExtraction(text: string): TenderExtraction {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const p = JSON.parse(cleaned) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  return {
+    referenceNo: str(p.referenceNo),
+    title: str(p.title),
+    organization: str(p.organization),
+    department: str(p.department),
+    category: str(p.category),
+    documentDated: str(p.documentDated),
+    bidEndsAt: str(p.bidEndsAt),
+    emdRequired: typeof p.emdRequired === 'boolean' ? p.emdRequired : null,
+    emdNote: str(p.emdNote),
+    miiNote: str(p.miiNote),
+    mseNote: str(p.mseNote),
+  };
+}
+
+/**
+ * Extracts tender metadata from a bid-document PDF via the multimodal LLM.
+ * Returns all-null when no LLM provider is configured (the review screen then
+ * shows every field as "not found" and the commit is blocked) - it never
+ * fabricates values to fill the gap.
+ */
+export async function extractTenderFromPdf(buffer: Buffer): Promise<TenderExtraction> {
+  if (!hasLLM()) return { ...EMPTY_TENDER_EXTRACTION };
+  const text = await llmComplete({
+    prompt: TENDER_INSTRUCTION,
+    file: { base64: buffer.toString('base64'), mimeType: 'application/pdf' },
+    json: true,
+    maxTokens: 900,
+  });
+  return parseTenderExtraction(text);
+}
+
+// --- Dataset import: bidder spreadsheet -------------------------------------
+// Structured parsing (xlsx), NOT an LLM call. Same hard rule: a cell that is
+// blank / absent becomes null, never a guessed value.
+
+export interface BidderRecordExtraction {
+  name: string | null;
+  companySlug: string | null;
+  tenderReferenceNo: string | null;
+  gstin: string | null;
+  pan: string | null;
+  udyamNumber: string | null;
+  claimedTurnoverInrLakh: number | null;
+  claimedEmployeeCount: number | null;
+}
+
+// Accepts a range of reasonable header spellings so an organizer's sheet
+// doesn't have to match our column names exactly.
+const HEADER_ALIASES: Record<keyof BidderRecordExtraction, string[]> = {
+  name: ['name', 'bidder', 'biddername', 'bidder name', 'company', 'companyname', 'company name', 'firm', 'firm name'],
+  companySlug: ['companyslug', 'company slug', 'slug', 'companyid', 'company id'],
+  tenderReferenceNo: ['tenderreferenceno', 'tender', 'tender ref', 'tenderref', 'referenceno', 'reference no', 'bid number', 'bidnumber', 'gem bid', 'tender no', 'tenderno'],
+  gstin: ['gstin', 'gst', 'gst no', 'gstno', 'gst number'],
+  pan: ['pan', 'pan no', 'panno', 'pan number'],
+  udyamNumber: ['udyamnumber', 'udyam', 'udyam no', 'udyamno', 'udyam number', 'msme', 'msme no', 'udyam registration'],
+  claimedTurnoverInrLakh: ['claimedturnoverinrlakh', 'turnover', 'turnover lakh', 'turnover (lakh)', 'annual turnover', 'turnoverlakh', 'turnover in lakh'],
+  claimedEmployeeCount: ['claimedemployeecount', 'employees', 'employee count', 'headcount', 'staff', 'no of employees', 'number of employees'],
+};
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function buildHeaderMap(headers: string[]): Partial<Record<keyof BidderRecordExtraction, number>> {
+  const map: Partial<Record<keyof BidderRecordExtraction, number>> = {};
+  headers.forEach((h, i) => {
+    const n = norm(h ?? '');
+    if (!n) return;
+    for (const key of Object.keys(HEADER_ALIASES) as (keyof BidderRecordExtraction)[]) {
+      if (map[key] !== undefined) continue;
+      if (HEADER_ALIASES[key].some((a) => norm(a) === n)) map[key] = i;
+    }
+  });
+  return map;
+}
+
+function cellString(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s ? s : null;
+}
+function cellNumber(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(String(v).replace(/[₹,\s]/g, ''));
+  return Number.isFinite(n) ? n : null;
+}
+
+export interface SpreadsheetExtraction {
+  records: BidderRecordExtraction[];
+  /** Header row as read, so the review screen can show what was matched. */
+  headersFound: string[];
+  matchedColumns: string[];
+  warnings: string[];
+}
+
+/**
+ * Parses a bidder spreadsheet (xlsx / xls / csv) into bidder-shaped records.
+ * Reads the first sheet only. Unrecognised columns are ignored; a row with
+ * no usable name is dropped with a warning.
+ */
+export function extractRecordsFromSpreadsheet(buffer: Buffer): SpreadsheetExtraction {
+  const warnings: string[] = [];
+  let wb: XLSX.WorkBook;
+  try {
+    wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  } catch (err) {
+    return { records: [], headersFound: [], matchedColumns: [], warnings: [`Could not parse spreadsheet: ${err instanceof Error ? err.message : err}`] };
+  }
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return { records: [], headersFound: [], matchedColumns: [], warnings: ['Spreadsheet has no sheets.'] };
+  if (wb.SheetNames.length > 1) warnings.push(`Only the first sheet ("${sheetName}") was read; ${wb.SheetNames.length - 1} other sheet(s) ignored.`);
+
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: null });
+  if (rows.length < 2) return { records: [], headersFound: [], matchedColumns: [], warnings: [...warnings, 'Spreadsheet has no data rows.'] };
+
+  const headers = (rows[0] as unknown[]).map((h) => (h === null || h === undefined ? '' : String(h)));
+  const hm = buildHeaderMap(headers);
+  const matchedColumns = (Object.keys(hm) as (keyof BidderRecordExtraction)[]).map((k) => `${k} ← "${headers[hm[k]!]}"`);
+  if (hm.name === undefined) warnings.push('No "name" column recognised - every row will be skipped on commit.');
+
+  const records: BidderRecordExtraction[] = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] as unknown[];
+    const get = (k: keyof BidderRecordExtraction) => (hm[k] === undefined ? null : row[hm[k]!]);
+    const name = cellString(get('name'));
+    if (!name) {
+      warnings.push(`Row ${r + 1}: no name - skipped.`);
+      continue;
+    }
+    records.push({
+      name,
+      companySlug: cellString(get('companySlug')),
+      tenderReferenceNo: cellString(get('tenderReferenceNo')),
+      gstin: cellString(get('gstin')),
+      pan: cellString(get('pan')),
+      udyamNumber: cellString(get('udyamNumber')),
+      claimedTurnoverInrLakh: cellNumber(get('claimedTurnoverInrLakh')),
+      claimedEmployeeCount: cellNumber(get('claimedEmployeeCount')),
+    });
+  }
+  return { records, headersFound: headers, matchedColumns, warnings };
 }
