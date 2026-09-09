@@ -17,15 +17,24 @@ export const SESSION_COOKIE = 'gem_session';
 
 const SECRET = process.env.SESSION_SECRET || 'dev-only-insecure-secret-change-me';
 
-export type Role = 'officer' | 'viewer';
+export type Role = 'officer' | 'viewer' | 'bidder';
 export interface Session {
   name: string;
   role: Role;
+  /**
+   * Only set when role === 'bidder'. Matches Bidder.companySlug - the stable
+   * per-company identity shared by every row for that company across tenders
+   * (e.g. 'sentinel-imaging' on tenders 5/8/9), so scoping by it gives a
+   * bidder visibility into every tender they've bid on. (Bidder.key is
+   * per-row - 'sentinel-imaging-t8' - and is not what we scope on.)
+   */
+  companySlug?: string;
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
   officer: 'Procurement Officer',
   viewer: 'Viewer (read-only)',
+  bidder: 'Bidder',
 };
 
 function sign(payload: string): string {
@@ -48,8 +57,12 @@ export function decodeSession(token: string | undefined | null): Session | null 
   }
   try {
     const obj = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
-    if (typeof obj.name === 'string' && (obj.role === 'officer' || obj.role === 'viewer')) {
+    if (typeof obj.name !== 'string') return null;
+    if (obj.role === 'officer' || obj.role === 'viewer') {
       return { name: obj.name, role: obj.role };
+    }
+    if (obj.role === 'bidder' && typeof obj.companySlug === 'string' && obj.companySlug) {
+      return { name: obj.name, role: 'bidder', companySlug: obj.companySlug };
     }
   } catch {
     /* fall through */

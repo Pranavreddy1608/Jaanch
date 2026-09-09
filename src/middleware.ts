@@ -7,13 +7,22 @@ const SESSION_COOKIE = 'gem_session';
 const PUBLIC_PATHS = ['/sign-in'];
 
 /**
- * Gate: an unauthenticated visitor is sent to /sign-in. This only checks
- * for the presence of the session cookie - the signature is verified (and
- * the role is enforced) server-side in the actions that need it, so a
- * forged cookie gets past this redirect but not past recordDecision.
+ * Gate: an unauthenticated visitor loading a page is sent to /sign-in. This
+ * only checks for the presence of the session cookie - the signature is
+ * verified and the role enforced server-side in every action that mutates
+ * anything (runVerification / uploadDocument / recordDecision), so a forged
+ * or missing cookie gets past this redirect but not past those.
+ *
+ * Only GET navigations are redirected. Server Actions POST to the page URL
+ * they were invoked from; a `SameSite=Lax` session cookie is withheld on a
+ * top-level POST, so redirecting those here would bounce a legitimately
+ * signed-in user to /sign-in. The actions authenticate themselves, so we let
+ * every non-GET request through and let the action decide.
  */
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (req.method !== 'GET') return NextResponse.next();
 
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return NextResponse.next();

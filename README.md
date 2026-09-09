@@ -42,7 +42,13 @@ npm run dev                  # http://localhost:3000
 
 (`npm run setup` does all of the above except `dev` in one go.)
 
-Open `http://localhost:3000`. You'll be sent to `/sign-in` — enter any name and pick a role (**Procurement Officer** can record decisions; **Viewer** is read-only). `/dashboard` is the **tender list** (10 bids, open/closed badge, bidder count). Click a tender → `/tenders/[id]` shows that bid's info card + its bidders. **Run Verification** on a bidder, then **Details** for the per-requirement breakdown, AI recommendation, and audit trail.
+Open `http://localhost:3000`. You'll be sent to `/sign-in` — enter any name and pick a role:
+
+- **Procurement Officer** — full access: runs verification, uploads documents for any bidder, records the qualify/disqualify decision.
+- **Viewer** — read-only: sees everything, changes nothing.
+- **Bidder** — pick a company; sees only that company's tender participation across all its bids, and can upload only its own compliance documents. Never sees another bidder's data (name, GSTIN, score, documents) — enforced server-side.
+
+`/dashboard` is the **tender list** (10 bids, open/closed badge, bidder count). Click a tender → `/tenders/[id]` shows that bid's info card + its bidders. **Run Verification** on a bidder, then **Details** for the per-requirement breakdown, AI recommendation, and audit trail.
 
 ### AI provider (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY`)
 
@@ -78,7 +84,7 @@ The app is a three-level drill-down: **Tenders → Bidders → Bidder detail**. 
 
 ## Architecture
 
-- **`prisma/schema.prisma`** — Tender (with real bid facts: `documentDated`, `bidEndsAt`, `emdRequired`, `miiNote`, `mseNote`), ComplianceRequirement (tender-configurable rules, incl. `ruleConfig.notApplicable`), Bidder, Document (incl. uploaded `fileData`/`mimeType`), VerificationResult, Score, Decision, AuditLog.
+- **`prisma/schema.prisma`** — Tender (with real bid facts: `documentDated`, `bidEndsAt`, `emdRequired`, `miiNote`, `mseNote`), ComplianceRequirement (tender-configurable rules, incl. `ruleConfig.notApplicable`), Bidder (`key` is the per-tender-row slug; `companySlug` is the stable per-company identity a Bidder signs in as), Document (incl. uploaded `fileData`/`mimeType`), VerificationResult, Score, Decision, AuditLog.
 - **`src/lib/providers/`** — the provider-adapter layer (`types.ts` is the interface; `mock/`, `stub/`, `real/` are implementations; `registry.ts` maps `sourceType` → provider). Each result carries a `method` (`real` / `real+simulated` / `simulated` / `sandbox-probe`) that surfaces as the honesty tag on every requirement row.
 - **`src/lib/validation/`** — real government-specified identifier checks with unit tests: `pan.ts` (Income Tax PAN format + holder type), `gstin.ts` (structure + Mod-36 checksum + embedded-PAN match). `npm test` runs these against real published GSTINs.
 - **`src/lib/fixtures/`** — `registryFixtures.ts` (the simulated GST/PAN/Udyam/DPIIT/debarment tables) + `syntheticCompanies.ts` (a pool of ~13 synthetic companies shared across tenders 2–10, each shaped for one verification outcome; GSTINs computed with the real Mod-36 checksum).
@@ -86,14 +92,14 @@ The app is a three-level drill-down: **Tenders → Bidders → Bidder detail**. 
 - **`src/lib/scoring.ts`** — turns rule outcomes into a 0–100 compliance score + LOW/MEDIUM/HIGH risk tier.
 - **`src/lib/ai/`** — `llm.ts` is a small provider layer (Gemini via REST / Claude via SDK / deterministic fallback; see *AI provider* above). `documentExtraction.ts` — `extractLocalContentCertificate` (OCR text), `extractLocalContentCertificateFromFile` and `extractOemAuthorizationFromFile` (uploaded PDF/image → multimodal call) — and `recommendation.ts` (plain-language PO summary) call through it. `npm run ai:check` (`scripts/check-ai.ts`) verifies the configured provider end to end.
 - **`src/lib/orchestrator.ts`** — runs the full pipeline for one bidder: extract documents → verify every requirement → evaluate rules → score → AI recommendation → persist everything with an audit-log entry at each step.
-- **`src/lib/session.ts` + `src/middleware.ts`** — signed-cookie sign-in (name + `officer`/`viewer` role, HMAC via `SESSION_SECRET`); middleware redirects anonymous visitors to `/sign-in`.
+- **`src/lib/session.ts` + `src/lib/access.ts` + `src/middleware.ts`** — signed-cookie sign-in (name + `officer`/`viewer`/`bidder` role, HMAC via `SESSION_SECRET`; a `bidder` session also carries `companySlug`). `access.ts` is the one place the role/ownership rules live (`canViewBidder`, `canRunVerification`, `canUploadDocumentFor`, `canRecordDecision`), unit-tested in `access.test.ts` and used by both the server actions and the pages. Middleware redirects anonymous **page loads** to `/sign-in` (it lets non-GET through — server actions authenticate themselves).
 - **`src/lib/actions.ts` / `src/lib/authActions.ts`** — Next.js Server Actions: `runVerification` (throws; `VerifyButton` catches), `uploadDocument` + `recordDecision` (`useFormState` shape, return a status object), `signIn` / `signOut`.
 - **`src/app/`** — `/sign-in`, `/dashboard` (tender list), `/tenders/[id]` (one bid's info card + bidder table + Verify buttons), `/bidders/[id]` (per-requirement drill-down, AI recommendation, document upload + extracted fields, decision form, audit trail), plus `loading.tsx` skeletons, `error.tsx`, and `not-found.tsx` for tender and bidder.
 
 ## What was built on top of the base pipeline
 
 - **Real document upload + extraction** — the bidder page has an upload control per document type the tender needs (PDF / PNG / JPEG / WebP, ≤8 MB); bytes are stored on `Document.fileData` and read directly by a multimodal LLM call (no separate OCR). Two live paths: **local-content certificate** (declared % + agency) and **OEM authorization letter** (does it read as one, and does the authorised name match the bidder — a genuine `method: 'real'` content check). An upload replaces any existing document of that type. When the tender waives a requirement (Make-in-India here), that upload is shown disabled with the reason, so a user never uploads into a dead end.
-- **Sign-in + roles** — signed-cookie identity; `recordDecision` enforces `role === 'officer'` server-side and attributes the decision to the signed-in name (no free-text officer field). Not a real auth system (no user store / password) — production would use the organisation's SSO.
+- **Sign-in + roles** — signed-cookie identity, three roles. `runVerification`, `uploadDocument` and `recordDecision` each enforce their rule server-side via `src/lib/access.ts` (officer-only for verify/decide; officer-or-own-company for upload) and attribute the action to the signed-in identity in the audit trail. A **Bidder** is scoped to one `companySlug`: the dashboard and tender queries are *filtered* to their rows, and `/bidders/[id]` calls `notFound()` before rendering if the page isn't their company — so a guessed URL leaks nothing. Not a real auth system (no user store / password) — production would use the organisation's SSO.
 - **Demo hardening** — loading skeletons, an app-level error boundary, a friendly bidder not-found page, `VerifyButton` spinner + inline error, form pending/error/success states, dashboard empty state.
 - **AI provider layer** — Gemini (free) or Claude, with a deterministic fallback so a missing/rate-limited key never breaks the demo.
 - **10 real tenders + tender-list routing** — `/dashboard` is a tender list; each `/tenders/[id]` scopes to that bid's bidders. All 10 are real GeM bids (table at the top of this file); each one's requirement set, EMD status, MSE preference and Make-in-India position are configured from its published document. The requirement set for the flagship, e.g., makes OEM Authorization mandatory, Udyam/MSME non-mandatory (a purchase-preference signal, not a gate), and Make-in-India `NOT APPLICABLE` with the competent-authority waiver reference; other tenders vary (MII carrying a real 20%/50% preference, EMD in lakhs with a named bank, no exemption from the Class-1/Class-2 restriction, ...).
@@ -111,5 +117,5 @@ The app is a three-level drill-down: **Tenders → Bidders → Bidder detail**. 
 ## Contributor notes
 
 - `recordDecision` / `uploadDocument` / `signIn` are `useFormState` actions returning a status object; `runVerification` throws and its caller catches. Keep new form actions in the form-state shape.
-- `src/middleware.ts` runs on the Edge runtime and can't import `src/lib/session.ts` (which uses `node:crypto`) — it only checks cookie *presence*; signature + role are verified server-side in the actions.
+- `src/middleware.ts` runs on the Edge runtime and can't import `src/lib/session.ts` (which uses `node:crypto`) — it only checks cookie *presence* on GET navigations; signature, role, and per-company ownership are verified server-side in the pages (`notFound()`) and actions (`src/lib/access.ts`).
 - On Windows, stop `next dev` before `npx prisma generate` / `db:push` — the running server locks the query-engine DLL.

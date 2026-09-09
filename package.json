@@ -12,7 +12,7 @@
     "db:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "ai:check": "tsx scripts/check-ai.ts",
-    "test": "tsx --test src/lib/validation/*.test.ts",
+    "test": "tsx --test src/lib/**/*.test.ts",
     "setup": "npm install && npx prisma generate && npm run db:push && npm run seed"
   },
   "dependencies": {

@@ -9,6 +9,7 @@ import { DecisionForm } from '@/components/DecisionForm';
 import { DocumentUpload } from '@/components/DocumentUpload';
 import type { RequirementEvaluation } from '@/lib/rulesEngine';
 import { getSession } from '@/lib/session';
+import { canViewBidder, canRunVerification, canUploadDocumentFor } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,12 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   if (!bidder) notFound();
 
   const session = getSession();
+
+  // The critical access check: a bidder may only ever open their own company's
+  // page. Anything else - a guessed/edited URL for another company - is a 404,
+  // server-side, before any of this bidder's data is rendered.
+  if (!canViewBidder(session, bidder.companySlug)) notFound();
+
   const latestScore = bidder.scores[0];
   const evaluations: RequirementEvaluation[] = latestScore ? JSON.parse(latestScore.breakdown) : [];
 
@@ -53,10 +60,15 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   }
   const oemRequired = bidder.tender.requirements.some((r) => r.code === 'OEM_AUTHORIZATION' && r.mandatory);
 
-  // A Viewer is read-only: they can see everything, but running verification,
-  // uploading documents and recording a decision are Procurement Officer only
-  // (also enforced server-side in src/lib/actions.ts).
-  const canAct = session?.role === 'officer';
+  // Who can do what on this page (all also enforced server-side in
+  // src/lib/actions.ts - the UI state here is a courtesy, not the guard):
+  //  - verification: Procurement Officer only. A Viewer sees it disabled; a
+  //    Bidder doesn't see it (verification is officer/system-triggered).
+  //  - document upload: the Procurement Officer, or the bidder for their own
+  //    company (guaranteed to be their own by the access check above).
+  //  - recording a decision: Procurement Officer only (DecisionForm handles it).
+  const canVerify = canRunVerification(session);
+  const canUpload = canUploadDocumentFor(session, bidder.companySlug);
   const viewerNote = 'Read-only — only a Procurement Officer can do this. You are signed in as a Viewer.';
 
   return (
@@ -85,11 +97,15 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
             <ScoreBadge score={latestScore?.complianceScore ?? null} />
             <RiskBadge level={latestScore?.riskLevel ?? null} />
           </div>
-          <VerifyButton
-            bidderId={bidder.id}
-            label={latestScore ? 'Re-run Verification' : 'Run Verification'}
-            disabledReason={canAct ? undefined : viewerNote}
-          />
+          {session?.role === 'bidder' ? (
+            <span className="text-[11px] text-slate-400">Verification is run by the Procurement Officer.</span>
+          ) : (
+            <VerifyButton
+              bidderId={bidder.id}
+              label={latestScore ? 'Re-run Verification' : 'Run Verification'}
+              disabledReason={canVerify ? undefined : viewerNote}
+            />
+          )}
         </div>
       </div>
 
@@ -106,7 +122,11 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
       <div className="card">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Requirement-by-Requirement Status</h3>
         {evaluations.length === 0 ? (
-          <p className="text-sm text-slate-500">No verification run yet — click &quot;Run Verification&quot; above.</p>
+          <p className="text-sm text-slate-500">
+            {session?.role === 'bidder'
+              ? 'No verification run yet — the Procurement Officer runs the compliance checks once your documents are in.'
+              : 'No verification run yet — click "Run Verification" above.'}
+          </p>
         ) : (
           <table className="w-full text-left">
             <tbody>
@@ -133,7 +153,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
               bidderId={bidder.id}
               docType="OEM_AUTHORIZATION_CERTIFICATE"
               label="OEM Authorization Certificate"
-              disabled={!canAct}
+              disabled={!canUpload}
               disabledTitle="Upload OEM Authorization Certificate"
               disabledNote={viewerNote}
             />
@@ -142,7 +162,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
             bidderId={bidder.id}
             docType="LOCAL_CONTENT_CERTIFICATE"
             label="Local Content Certificate"
-            disabled={miiWaived || !canAct}
+            disabled={miiWaived || !canUpload}
             disabledTitle={miiWaived ? undefined : 'Upload Local Content Certificate'}
             disabledNote={
               miiWaived
@@ -179,12 +199,16 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         )}
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <DecisionForm
-          bidderId={bidder.id}
-          officerName={session?.name ?? ''}
-          canRecord={session?.role === 'officer'}
-        />
+      <div className={session?.role === 'bidder' ? '' : 'grid gap-6 sm:grid-cols-2'}>
+        {/* The decision-input panel is officer tooling; a bidder sees only the
+            outcome (Decision History below), which is their own data. */}
+        {session?.role !== 'bidder' && (
+          <DecisionForm
+            bidderId={bidder.id}
+            officerName={session?.name ?? ''}
+            canRecord={session?.role === 'officer'}
+          />
+        )}
 
         <div className="card">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Decision History</h3>

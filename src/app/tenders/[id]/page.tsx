@@ -5,14 +5,20 @@ import { ScoreBadge } from '@/components/ScoreBadge';
 import { RiskBadge } from '@/components/RiskBadge';
 import { VerifyButton } from '@/components/VerifyButton';
 import { getSession } from '@/lib/session';
+import { canRunVerification } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
 export default async function TenderDetailPage({ params }: { params: { id: string } }) {
+  const session = getSession();
+  const isBidder = session?.role === 'bidder';
+
   const tender = await prisma.tender.findUnique({
     where: { id: params.id },
     include: {
       bidders: {
+        // A bidder only ever sees their own row - scoped on the query, not hidden.
+        where: isBidder ? { companySlug: session!.companySlug } : undefined,
         orderBy: { createdAt: 'asc' },
         include: {
           scores: { orderBy: { computedAt: 'desc' }, take: 1 },
@@ -27,9 +33,30 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
   const bidClosed = tender.bidEndsAt ? tender.bidEndsAt.getTime() < Date.now() : false;
 
   // Running verification is Procurement Officer only (enforced server-side in
-  // src/lib/actions.ts); a Viewer sees the bidder table read-only.
-  const canAct = getSession()?.role === 'officer';
+  // src/lib/actions.ts). A Viewer sees the button disabled; a Bidder never
+  // sees it (verification is officer/system-triggered).
+  const canVerify = canRunVerification(session);
   const viewerNote = 'Read-only — only a Procurement Officer can run verification.';
+
+  // Defends against a bidder reaching a tender they are not registered on by
+  // guessing the URL (step 5 already keeps those off the dashboard).
+  if (isBidder && tender.bidders.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Link href="/dashboard" className="text-sm text-slate-500 hover:text-chakra hover:underline">
+            ← Back to dashboard
+          </Link>
+        </div>
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold">Not a registered bidder</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            You are not a registered bidder on {tender.referenceNo} ({tender.title}).
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -82,7 +109,8 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
           )}
         </dl>
         <p className="mt-2 text-[11px] text-slate-400">
-          Real, independently verifiable GeM bid ({tender.referenceNo}). Bidders below are synthetic.
+          Real, independently verifiable GeM bid ({tender.referenceNo}).{' '}
+          {isBidder ? 'The row below is your bid.' : 'Bidders below are synthetic.'}
         </p>
       </div>
 
@@ -90,7 +118,7 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Bidder</th>
+              <th className="px-4 py-3">{isBidder ? 'Your bid' : 'Bidder'}</th>
               <th className="px-4 py-3">Compliance Score</th>
               <th className="px-4 py-3">Risk Level</th>
               <th className="px-4 py-3">PO Decision</th>
@@ -117,12 +145,14 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
                   <td className="px-4 py-3 text-slate-600">{latestDecision ? latestDecision.outcome : 'Pending'}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <VerifyButton
-                        bidderId={bidder.id}
-                        label={latestScore ? 'Re-verify' : 'Run Verification'}
-                        disabledReason={canAct ? undefined : viewerNote}
-                        compact
-                      />
+                      {!isBidder && (
+                        <VerifyButton
+                          bidderId={bidder.id}
+                          label={latestScore ? 'Re-verify' : 'Run Verification'}
+                          disabledReason={canVerify ? undefined : viewerNote}
+                          compact
+                        />
+                      )}
                       <Link href={`/bidders/${bidder.id}`} className="text-sm font-medium text-slate-600 hover:text-chakra hover:underline">
                         Details →
                       </Link>

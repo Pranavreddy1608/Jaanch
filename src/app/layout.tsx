@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <ChakraWheel className="h-8 w-8 shrink-0 text-chakra" />
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-saffron-700">
-                    Government e-Marketplace · Procurement Officer Console
+                    Government e-Marketplace · {session?.role === 'bidder' ? 'Bidder Portal' : 'Procurement Officer Console'}
                   </p>
                   <h1 className="text-xl font-semibold text-slate-900">GeM Bid Compliance Verification Platform</h1>
                 </div>

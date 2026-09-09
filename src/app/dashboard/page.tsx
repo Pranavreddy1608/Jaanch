@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
+import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,17 +8,34 @@ const fmtDate = (d: Date) =>
   d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default async function DashboardPage() {
+  const session = getSession();
+  const isBidder = session?.role === 'bidder';
+
+  // A bidder only ever sees tenders they are actually registered on - this is
+  // a filter on the query itself, not a UI hide.
   const tenders = await prisma.tender.findMany({
+    where: isBidder ? { bidders: { some: { companySlug: session!.companySlug } } } : undefined,
     orderBy: { createdAt: 'asc' },
     include: { _count: { select: { bidders: true } } },
   });
 
+  const companyName = isBidder
+    ? (await prisma.bidder.findFirst({ where: { companySlug: session!.companySlug }, select: { name: true } }))?.name ??
+      'Your company'
+    : null;
+
   if (tenders.length === 0) {
     return (
       <div className="card p-6">
-        <h2 className="text-lg font-semibold">No tenders loaded</h2>
+        <h2 className="text-lg font-semibold">{isBidder ? 'No tenders' : 'No tenders loaded'}</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Run <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">npm run seed</code> to load the demo tenders.
+          {isBidder ? (
+            'Your company is not currently registered as a bidder on any tender.'
+          ) : (
+            <>
+              Run <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">npm run seed</code> to load the demo tenders.
+            </>
+          )}
         </p>
       </div>
     );
@@ -28,10 +46,19 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">Tenders</h2>
+        <h2 className="text-lg font-semibold">{isBidder ? 'Your tenders' : 'Tenders'}</h2>
         <p className="text-sm text-slate-500">
-          {tenders.length} real, independently verifiable GeM bids. Click a tender to see its bidders and run compliance
-          verification. Bidders are synthetic.
+          {isBidder ? (
+            <>
+              The {tenders.length} GeM {tenders.length === 1 ? 'bid' : 'bids'} {companyName} is registered on. Click one to
+              see your compliance status and upload documents.
+            </>
+          ) : (
+            <>
+              {tenders.length} real, independently verifiable GeM bids. Click a tender to see its bidders and run
+              compliance verification. Bidders are synthetic.
+            </>
+          )}
         </p>
       </div>
 
@@ -80,7 +107,7 @@ export default async function DashboardPage() {
                   {closed ? 'Closed' : 'Open'}
                 </span>
                 <span className="whitespace-nowrap text-xs text-slate-500">
-                  {t._count.bidders} {t._count.bidders === 1 ? 'bidder' : 'bidders'}
+                  {isBidder ? 'You are registered' : `${t._count.bidders} ${t._count.bidders === 1 ? 'bidder' : 'bidders'}`}
                 </span>
               </div>
             </Link>

@@ -143,15 +143,22 @@ letter … please check the file that was uploaded."* — not a silent MET.
 > "With no document uploaded, this falls back to a labelled simulated stub that can only
 > pass or flag for review. Same hybrid pattern as GST and PAN."
 
-## 8. Viewer role — the guardrail (20s)
+## 8. Roles — the guardrails (40s)
 
-- New tab / incognito → sign in as **Viewer**.
-- Open any bidder: **Run Verification** and both document uploads are greyed out with a
-  "read-only" hint, and the decision panel reads *"You are signed in as a Viewer. Only a
-  Procurement Officer can record a qualify / disqualify decision."* — a Viewer can see
-  everything and change nothing.
-- All three (verify, upload, record decision) are also enforced **server-side** in
-  `src/lib/actions.ts` — a forged cookie or a direct action call gets the same treatment.
+- New tab / incognito → sign in as **Viewer**. Open any bidder: **Run Verification** and both
+  document uploads are greyed out with a "read-only" hint, and the decision panel reads
+  *"You are signed in as a Viewer…"* — a Viewer sees everything and changes nothing.
+- Sign in again as **Bidder → Sentinel Imaging Solutions Pvt Ltd**:
+  - The dashboard shows **only the 3 tenders Sentinel is on** (5, 8, 9) — the query is
+    filtered, not the UI.
+  - Open one: the bidder table has **one row — theirs**. No competitor names, scores, or count.
+  - On their own page: the **OEM Authorization upload works**; there's no verify button and no
+    decision form.
+  - Edit the URL to another company's `/bidders/<id>` → **404**, before any data renders.
+- All of it is enforced **server-side** — `src/lib/access.ts` (`canViewBidder`,
+  `canRunVerification`, `canUploadDocumentFor`, `canRecordDecision`, unit-tested), the
+  dashboard/tender query filters, and a `notFound()` on the bidder page. A forged cookie or a
+  hand-crafted action request gets the same treatment.
 
 ## 9. Close — "what's real" (25s)
 

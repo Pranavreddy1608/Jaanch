@@ -98,6 +98,12 @@ const miiWaived = (waiverBasis: string) => ({
 
 interface SeedBidder {
   key: string;
+  /**
+   * Stable per-company identity, shared by every row for the same company
+   * across tenders (e.g. 'sentinel-imaging' on tenders 5/8/9). This is what a
+   * Bidder signs in as; `key` stays per-row for fixture joins.
+   */
+  companySlug: string;
   name: string;
   udyamNumber: string | null;
   gstin: string | null;
@@ -117,6 +123,7 @@ function poolBidder(
   if (!c) throw new Error(`unknown synthetic company: ${slug}`);
   return {
     key: `${slug}-${tag}`,
+    companySlug: slug,
     name: c.name,
     udyamNumber: c.udyamNumber,
     gstin: companyGstin(c),
@@ -232,6 +239,7 @@ const TENDERS: SeedTender[] = [
     bidders: [
       {
         key: 'chennai-precision-engineering',
+        companySlug: 'chennai-precision-engineering',
         name: 'Chennai Precision Engineering Pvt Ltd',
         udyamNumber: 'UDYAM-TN-03-0012345',
         gstin: '33AAACC1206D1ZN',
@@ -247,6 +255,7 @@ const TENDERS: SeedTender[] = [
       },
       {
         key: 'coastal-traders',
+        companySlug: 'coastal-traders',
         name: 'Coastal Traders & Co',
         udyamNumber: null,
         gstin: '33AACFC5678K1Z8',
@@ -257,6 +266,7 @@ const TENDERS: SeedTender[] = [
       },
       {
         key: 'bharath-msme-fabricators',
+        companySlug: 'bharath-msme-fabricators',
         name: 'Bharath MSME Febricators',
         udyamNumber: 'UDYAM-TN-06-0098765',
         gstin: '29AAGFB0987R1ZM',
@@ -267,6 +277,7 @@ const TENDERS: SeedTender[] = [
       },
       {
         key: 'swift-supplies-enterprises',
+        companySlug: 'swift-supplies-enterprises',
         name: 'Swift Supplies Enterprises',
         udyamNumber: null,
         gstin: '27AABCS4321L1ZA',
@@ -277,6 +288,7 @@ const TENDERS: SeedTender[] = [
       },
       {
         key: 'novatech-industrial-solutions',
+        companySlug: 'novatech-industrial-solutions',
         name: 'NovaTech Industrial Solutions',
         udyamNumber: 'UDYAM-TN-09-0055555',
         gstin: null,
@@ -636,6 +648,7 @@ async function main() {
         data: {
           tenderId: tender.id,
           key: b.key,
+          companySlug: b.companySlug,
           name: b.name,
           udyamNumber: b.udyamNumber,
           gstin: b.gstin,

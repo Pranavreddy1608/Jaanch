@@ -51,7 +51,8 @@ model Bidder {
   id                     String                @id @default(cuid())
   tenderId               String
   tender                 Tender                @relation(fields: [tenderId], references: [id])
-  key                    String                @unique // stable slug used to join demo fixture data
+  key                    String                @unique // per-tender-row slug (e.g. sentinel-imaging-t8), joins demo fixture data
+  companySlug            String                @default("") // stable per-company identity across tenders (e.g. sentinel-imaging); the Bidder sign-in scope
   name                   String
   udyamNumber            String?
   gstin                  String?

@@ -5,6 +5,7 @@ import { prisma } from './db';
 import { runVerificationForBidder } from './orchestrator';
 import { logAudit } from './auditLog';
 import { getSession } from './session';
+import { canRunVerification, canUploadDocumentFor, canRecordDecision } from './access';
 
 async function revalidateBidder(bidderId: string) {
   const b = await prisma.bidder.findUnique({ where: { id: bidderId }, select: { tenderId: true } });
@@ -16,7 +17,7 @@ async function revalidateBidder(bidderId: string) {
 export async function runVerification(bidderId: string) {
   const session = getSession();
   if (!session) throw new Error('Session expired — sign in again.');
-  if (session.role !== 'officer') throw new Error('Only a Procurement Officer can run verification. You are signed in as a Viewer.');
+  if (!canRunVerification(session)) throw new Error('Only a Procurement Officer can run verification.');
   if (!bidderId) throw new Error('Missing bidder.');
   await runVerificationForBidder(bidderId);
   await revalidateBidder(bidderId);
@@ -40,15 +41,32 @@ export async function uploadDocument(_prev: UploadState, formData: FormData): Pr
   try {
     const session = getSession();
     if (!session) return { status: 'error', message: 'Session expired — sign in again.' };
-    if (session.role !== 'officer') {
-      return { status: 'error', message: 'Only a Procurement Officer can upload documents. You are signed in as a Viewer.' };
-    }
 
     const bidderId = String(formData.get('bidderId') ?? '');
     const docType = String(formData.get('docType') ?? 'LOCAL_CONTENT_CERTIFICATE');
     const file = formData.get('file');
 
     if (!bidderId) return { status: 'error', message: 'Missing bidder.' };
+
+    // The real access control: the Procurement Officer can upload for anyone;
+    // a Bidder can upload only for their own company. A Viewer, or a Bidder
+    // targeting another company's bidderId, is rejected here regardless of
+    // what the UI showed.
+    const targetBidder = await prisma.bidder.findUnique({
+      where: { id: bidderId },
+      select: { companySlug: true, name: true },
+    });
+    if (!targetBidder) return { status: 'error', message: 'Unknown bidder.' };
+    if (!canUploadDocumentFor(session, targetBidder.companySlug)) {
+      return {
+        status: 'error',
+        message:
+          session.role === 'bidder'
+            ? 'You can only upload documents for your own company.'
+            : 'Only a Procurement Officer can upload documents.',
+      };
+    }
+    const isOwnBidder = session.role === 'bidder';
     if (!(file instanceof File) || file.size === 0) return { status: 'error', message: 'Choose a file to upload.' };
     if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
       return { status: 'error', message: `Unsupported file type "${file.type || 'unknown'}". Upload a PDF, PNG, JPEG, or WebP.` };
@@ -68,13 +86,18 @@ export async function uploadDocument(_prev: UploadState, formData: FormData): Pr
 
     await logAudit({
       bidderId,
-      actor: 'SYSTEM',
+      actor: isOwnBidder ? `${targetBidder.name} (bidder)` : session.name,
       action: 'DOCUMENT_UPLOADED',
       details: { docType, fileName: file.name, mimeType: file.type, sizeBytes: file.size },
     });
 
     revalidatePath(`/bidders/${bidderId}`);
-    return { status: 'ok', message: `Uploaded ${file.name}. Re-run verification to check it.` };
+    return {
+      status: 'ok',
+      message: isOwnBidder
+        ? `Uploaded ${file.name}. The Procurement Officer will see it on the next verification run.`
+        : `Uploaded ${file.name}. Re-run verification to check it.`,
+    };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : 'Upload failed.' };
   }
@@ -90,7 +113,7 @@ export async function recordDecision(_prev: DecisionState, formData: FormData): 
   try {
     const session = getSession();
     if (!session) return { status: 'error', message: 'Session expired — sign in again.' };
-    if (session.role !== 'officer') {
+    if (!canRecordDecision(session)) {
       return { status: 'error', message: 'Only a Procurement Officer can record decisions.' };
     }
     const officerName = session.name;
