@@ -14,6 +14,9 @@ async function revalidateBidder(bidderId: string) {
 }
 
 export async function runVerification(bidderId: string) {
+  const session = getSession();
+  if (!session) throw new Error('Session expired — sign in again.');
+  if (session.role !== 'officer') throw new Error('Only a Procurement Officer can run verification. You are signed in as a Viewer.');
   if (!bidderId) throw new Error('Missing bidder.');
   await runVerificationForBidder(bidderId);
   await revalidateBidder(bidderId);
@@ -35,6 +38,12 @@ const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 MB
  */
 export async function uploadDocument(_prev: UploadState, formData: FormData): Promise<UploadState> {
   try {
+    const session = getSession();
+    if (!session) return { status: 'error', message: 'Session expired — sign in again.' };
+    if (session.role !== 'officer') {
+      return { status: 'error', message: 'Only a Procurement Officer can upload documents. You are signed in as a Viewer.' };
+    }
+
     const bidderId = String(formData.get('bidderId') ?? '');
     const docType = String(formData.get('docType') ?? 'LOCAL_CONTENT_CERTIFICATE');
     const file = formData.get('file');

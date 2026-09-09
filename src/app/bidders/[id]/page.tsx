@@ -53,6 +53,12 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   }
   const oemRequired = bidder.tender.requirements.some((r) => r.code === 'OEM_AUTHORIZATION' && r.mandatory);
 
+  // A Viewer is read-only: they can see everything, but running verification,
+  // uploading documents and recording a decision are Procurement Officer only
+  // (also enforced server-side in src/lib/actions.ts).
+  const canAct = session?.role === 'officer';
+  const viewerNote = 'Read-only — only a Procurement Officer can do this. You are signed in as a Viewer.';
+
   return (
     <div className="space-y-6">
       <div>
@@ -79,7 +85,11 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
             <ScoreBadge score={latestScore?.complianceScore ?? null} />
             <RiskBadge level={latestScore?.riskLevel ?? null} />
           </div>
-          <VerifyButton bidderId={bidder.id} label={latestScore ? 'Re-run Verification' : 'Run Verification'} />
+          <VerifyButton
+            bidderId={bidder.id}
+            label={latestScore ? 'Re-run Verification' : 'Run Verification'}
+            disabledReason={canAct ? undefined : viewerNote}
+          />
         </div>
       </div>
 
@@ -123,14 +133,22 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
               bidderId={bidder.id}
               docType="OEM_AUTHORIZATION_CERTIFICATE"
               label="OEM Authorization Certificate"
+              disabled={!canAct}
+              disabledTitle="Upload OEM Authorization Certificate"
+              disabledNote={viewerNote}
             />
           )}
           <DocumentUpload
             bidderId={bidder.id}
             docType="LOCAL_CONTENT_CERTIFICATE"
             label="Local Content Certificate"
-            disabled={miiWaived}
-            disabledNote="Make in India certification is waived for this tender (competent-authority approval on file) — uploads here won't affect this bidder's evaluation."
+            disabled={miiWaived || !canAct}
+            disabledTitle={miiWaived ? undefined : 'Upload Local Content Certificate'}
+            disabledNote={
+              miiWaived
+                ? "Make in India certification is waived for this tender (competent-authority approval on file) — uploads here won't affect this bidder's evaluation."
+                : viewerNote
+            }
           />
         </div>
         {bidder.documents.length === 0 ? (

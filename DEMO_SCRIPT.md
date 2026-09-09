@@ -146,9 +146,12 @@ letter … please check the file that was uploaded."* — not a silent MET.
 ## 8. Viewer role — the guardrail (20s)
 
 - New tab / incognito → sign in as **Viewer**.
-- Open any bidder: the decision panel reads *"You are signed in as a Viewer. Only a
-  Procurement Officer can record a qualify / disqualify decision."* — the form isn't
-  there. (Also enforced server-side — a forged cookie gets the same treatment.)
+- Open any bidder: **Run Verification** and both document uploads are greyed out with a
+  "read-only" hint, and the decision panel reads *"You are signed in as a Viewer. Only a
+  Procurement Officer can record a qualify / disqualify decision."* — a Viewer can see
+  everything and change nothing.
+- All three (verify, upload, record decision) are also enforced **server-side** in
+  `src/lib/actions.ts` — a forged cookie or a direct action call gets the same treatment.
 
 ## 9. Close — "what's real" (25s)
 

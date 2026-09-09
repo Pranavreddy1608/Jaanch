@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { ScoreBadge } from '@/components/ScoreBadge';
 import { RiskBadge } from '@/components/RiskBadge';
 import { VerifyButton } from '@/components/VerifyButton';
+import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,11 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
   if (!tender) notFound();
 
   const bidClosed = tender.bidEndsAt ? tender.bidEndsAt.getTime() < Date.now() : false;
+
+  // Running verification is Procurement Officer only (enforced server-side in
+  // src/lib/actions.ts); a Viewer sees the bidder table read-only.
+  const canAct = getSession()?.role === 'officer';
+  const viewerNote = 'Read-only — only a Procurement Officer can run verification.';
 
   return (
     <div className="space-y-6">
@@ -111,7 +117,12 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
                   <td className="px-4 py-3 text-slate-600">{latestDecision ? latestDecision.outcome : 'Pending'}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <VerifyButton bidderId={bidder.id} label={latestScore ? 'Re-verify' : 'Run Verification'} />
+                      <VerifyButton
+                        bidderId={bidder.id}
+                        label={latestScore ? 'Re-verify' : 'Run Verification'}
+                        disabledReason={canAct ? undefined : viewerNote}
+                        compact
+                      />
                       <Link href={`/bidders/${bidder.id}`} className="text-sm font-medium text-slate-600 hover:text-chakra hover:underline">
                         Details →
                       </Link>
