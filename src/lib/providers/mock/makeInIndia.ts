@@ -1,4 +1,4 @@
-import { dpiitLocalContentRegistry } from '@/lib/fixtures/registryFixtures';
+import { prisma } from '@/lib/db';
 import type { VerificationProvider, VerificationResultPayload } from '../types';
 
 /**
@@ -26,7 +26,8 @@ export const makeInIndiaProvider: VerificationProvider = {
     // that compound key is tried first; bidder.key is kept as a fallback so
     // nothing regresses for data seeded before this fix.
     const dpiitRecord =
-      dpiitLocalContentRegistry[`${bidder.companySlug}@${tenderReferenceNo}`] ?? dpiitLocalContentRegistry[bidder.key];
+      (await prisma.registryDpiitLocalContent.findUnique({ where: { key: `${bidder.companySlug}@${tenderReferenceNo}` } })) ??
+      (await prisma.registryDpiitLocalContent.findUnique({ where: { key: bidder.key } }));
     if (!dpiitRecord) {
       return {
         status: 'VERIFIED_FAIL',

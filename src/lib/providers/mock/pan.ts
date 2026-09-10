@@ -1,4 +1,4 @@
-import { panRegistry } from '@/lib/fixtures/registryFixtures';
+import { prisma } from '@/lib/db';
 import { validatePan } from '@/lib/validation/pan';
 import type { PanCardExtraction } from '@/lib/ai/documentExtraction';
 import type { VerificationProvider, VerificationResultPayload } from '../types';
@@ -10,12 +10,13 @@ import type { VerificationProvider, VerificationResultPayload } from '../types';
  *   1b. REAL, ADDITIVE - if the bidder has uploaded a PAN_CARD document, the
  *      multimodal LLM reads the PAN number off it and this is cross-checked
  *      against the bidder's declared PAN. A bidder with no PAN card uploaded
- *      is completely unaffected by this layer - it only ever adds a real
- *      document-backed cross-check, never a new way to fail or go MISSING.
- *   2. SIMULATED - a registry cross-check (holder name, PAN active status,
- *      latest IT-return filing). Real production access is the Income Tax
- *      "Verify PAN" API, which has no open signup (analysis doc §3), so this
- *      layer reads a fixture table.
+ *      is completely unaffected by this layer.
+ *   2. SIMULATED - a lookup against the RegistryPan table, a real table in
+ *      the Supabase Postgres database (prisma/schema.prisma), seeded by
+ *      scripts/seedRegistries.ts and editable from the Supabase dashboard.
+ *      Real production access is the Income Tax "Verify PAN" API, which has
+ *      no open signup (analysis doc §3), so this layer is a fixed reference
+ *      dataset rather than a live call.
  */
 export const panProvider: VerificationProvider = {
   key: 'pan',
@@ -76,17 +77,17 @@ export const panProvider: VerificationProvider = {
       }
     }
 
-    const disclaimer = `PAN is structurally valid per the Income Tax Dept format (real check).${documentNote} Registration status below is a simulated Income Tax database lookup.`;
+    const disclaimer = `PAN is structurally valid per the Income Tax Dept format (real check).${documentNote} Registration status below is looked up in the fixed PAN registry table in Supabase.`;
 
-    // --- Layer 2: simulated registry cross-check ---
-    const record = panRegistry[bidder.pan];
+    // --- Layer 2: registry cross-check - a real Supabase table ---
+    const record = await prisma.registryPan.findUnique({ where: { pan: bidder.pan } });
     if (!record) {
       return {
         status: 'INCONSISTENT',
         confidence: 0.8,
         isMock: true,
         method: 'real+simulated',
-        raw: { ...realPart, note: `${disclaimer} No matching holder record found in the simulated registry.` },
+        raw: { ...realPart, note: `${disclaimer} No matching holder record found in the registry.` },
       };
     }
     if (record.panStatus !== 'Valid') {

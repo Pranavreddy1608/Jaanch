@@ -1,4 +1,4 @@
-import { udyamRegistry } from '@/lib/fixtures/registryFixtures';
+import { prisma } from '@/lib/db';
 import type { UdyamCertificateExtraction } from '@/lib/ai/documentExtraction';
 import type { VerificationProvider, VerificationResultPayload } from '../types';
 
@@ -13,15 +13,10 @@ export const udyamProvider: VerificationProvider = {
   key: 'udyam',
   async verify({ bidder, documents }): Promise<VerificationResultPayload> {
     if (!bidder.udyamNumber) {
-      // Presence check is deterministic - real, not simulated (matches gst.ts/pan.ts).
       return { status: 'MISSING', confidence: 1, isMock: false, method: 'real', raw: { note: 'No Udyam number supplied by bidder.' } };
     }
 
-    // --- Real, additive: cross-check an uploaded Udyam certificate against
-    // the declared Udyam number, if one was uploaded. A bidder with no
-    // certificate uploaded is completely unaffected by this layer - it only
-    // ever adds a real document-backed cross-check, never a new way to fail
-    // or go MISSING. ---
+    // --- Real, additive document cross-check ---
     const certDoc = documents.find((d) => d.docType === 'UDYAM_CERTIFICATE');
     let documentNote = '';
     if (certDoc) {
@@ -52,7 +47,8 @@ export const udyamProvider: VerificationProvider = {
       }
     }
 
-    const record = udyamRegistry[bidder.udyamNumber];
+    // --- Registry cross-check - a real Supabase table (RegistryUdyam) ---
+    const record = await prisma.registryUdyam.findUnique({ where: { udyamNumber: bidder.udyamNumber } });
     if (!record) {
       return {
         status: 'VERIFIED_FAIL',

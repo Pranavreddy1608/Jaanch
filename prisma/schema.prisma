@@ -172,3 +172,52 @@ model AuditLog {
 
   @@index([bidderId])
 }
+
+// --- Simulated government registries, as real DB tables --------------------
+// The "fixed dataset" every mandatory check verifies bidder-declared and
+// uploaded-document values against. Lives in Supabase Postgres (not in code)
+// so it's visible and editable directly from the Supabase dashboard's Table
+// Editor. Seeded from src/lib/fixtures/registryFixtures.ts by
+// scripts/seedRegistries.ts - see that file for how to (re)populate it.
+
+model RegistryPan {
+  pan            String @id // the PAN itself, e.g. "AAACC1206D"
+  holderName     String
+  panStatus      String // Valid | Invalid | Deactivated
+  itFilingStatus String // Filed | NotFiled
+}
+
+model RegistryGst {
+  gstin                   String @id
+  legalName               String
+  status                  String // Active | Cancelled | Suspended
+  lastReturnPeriod        String // e.g. "2026-08"
+  returnFilingDelayMonths Int
+}
+
+model RegistryUdyam {
+  udyamNumber    String   @id
+  enterpriseName String
+  category       String // Micro | Small | Medium
+  status         String // Active | Cancelled
+  registeredOn   DateTime
+}
+
+model RegistryBlacklist {
+  id            String   @id @default(cuid())
+  matchValue    String // pan, gstin, or name fragment
+  matchField    String // pan | gstin | name
+  reason        String
+  debarredUntil DateTime
+}
+
+model RegistryDpiitLocalContent {
+  // Compound key `${companySlug}@${tender.referenceNo}` (or just
+  // companySlug for a single-tender company) - matches what
+  // makeInIndia.ts looks up with. Kept as a plain string id rather than a
+  // relation so this table stays self-contained and editable from the
+  // Supabase dashboard without a Tender row needing to exist first.
+  key                         String @id
+  verifiedLocalContentPercent Int
+  certifyingAgency            String
+}

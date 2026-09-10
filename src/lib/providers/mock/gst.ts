@@ -1,4 +1,4 @@
-import { gstRegistry } from '@/lib/fixtures/registryFixtures';
+import { prisma } from '@/lib/db';
 import { validateGstin } from '@/lib/validation/gstin';
 import { validatePan } from '@/lib/validation/pan';
 import type { GstCertificateExtraction } from '@/lib/ai/documentExtraction';
@@ -11,11 +11,12 @@ import type { VerificationProvider, VerificationResultPayload } from '../types';
  *      3-12) matches the PAN the bidder supplied. Deterministic, no fixtures.
  *   1b. REAL, ADDITIVE - if the bidder has uploaded a GST_CERTIFICATE
  *      document, the multimodal LLM reads the GSTIN off it and this is
- *      cross-checked against the bidder's declared GSTIN. A bidder with no
- *      certificate uploaded is completely unaffected by this layer.
- *   2. SIMULATED - registration status + return-filing history. Real
- *      production access requires GSP credentials (analysis doc §3), so this
- *      layer reads a fixture table.
+ *      cross-checked against the bidder's declared GSTIN.
+ *   2. SIMULATED - a lookup against the RegistryGst table, a real table in
+ *      the Supabase Postgres database, seeded by scripts/seedRegistries.ts
+ *      and editable from the Supabase dashboard. Real production access
+ *      requires GSP credentials (analysis doc §3), so this layer is a fixed
+ *      reference dataset rather than a live call.
  */
 export const gstProvider: VerificationProvider = {
   key: 'gst',
@@ -43,7 +44,6 @@ export const gstProvider: VerificationProvider = {
       embeddedPan: v.embeddedPan,
     };
 
-    // real cross-check: the PAN embedded in the GSTIN must match the bidder's PAN
     if (bidder.pan && validatePan(bidder.pan).valid && v.embeddedPan !== bidder.pan.trim().toUpperCase()) {
       return {
         status: 'INCONSISTENT',
@@ -90,17 +90,17 @@ export const gstProvider: VerificationProvider = {
       }
     }
 
-    const disclaimer = `GSTIN structure and Mod-36 checksum are valid (real check).${documentNote} Registration status and filing history below are a simulated GSTN lookup.`;
+    const disclaimer = `GSTIN structure and Mod-36 checksum are valid (real check).${documentNote} Registration status and filing history below are looked up in the fixed GST registry table in Supabase.`;
 
-    // --- Layer 2: simulated registration / filing ---
-    const record = gstRegistry[bidder.gstin];
+    // --- Layer 2: registry cross-check - a real Supabase table ---
+    const record = await prisma.registryGst.findUnique({ where: { gstin: bidder.gstin } });
     if (!record) {
       return {
         status: 'INCONSISTENT',
         confidence: 0.8,
         isMock: true,
         method: 'real+simulated',
-        raw: { ...realPart, note: `${disclaimer} No matching registration record found in the simulated registry.` },
+        raw: { ...realPart, note: `${disclaimer} No matching registration record found in the registry.` },
       };
     }
     if (record.status !== 'Active') {
