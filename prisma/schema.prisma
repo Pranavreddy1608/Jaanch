@@ -54,6 +54,7 @@ model ImportBatch {
   recordsCreated Int
   summary        String?
   tenders        Tender[]
+  bidders        Bidder[]
 }
 
 // One row per statutory/eligibility check a tender requires.
@@ -77,6 +78,12 @@ model Bidder {
   id                     String                @id @default(cuid())
   tenderId               String
   tender                 Tender                @relation(fields: [tenderId], references: [id])
+  // Set only for bidders created from a spreadsheet import (commit.ts records
+  // path). Lets the auto-import watcher offer a confirm-before-delete cascade
+  // when the source file is removed from Storage. onDelete: SetNull - deleting
+  // an ImportBatch never blocks on or cascade-fails a bidder.
+  importBatchId          String?
+  importBatch            ImportBatch?          @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   key                    String                @unique // per-tender-row slug (e.g. sentinel-imaging-t8), joins demo fixture data
   companySlug            String                @default("") // stable per-company identity across tenders (e.g. sentinel-imaging); the Bidder sign-in scope
   name                   String

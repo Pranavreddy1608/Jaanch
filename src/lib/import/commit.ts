@@ -174,6 +174,12 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
           udyamNumber: b.udyamNumber,
           claimedTurnoverInrLakh: b.claimedTurnoverInrLakh ?? undefined,
           claimedEmployeeCount: b.claimedEmployeeCount ?? undefined,
+          // Traces this bidder back to its source spreadsheet, so the
+          // auto-import watcher can offer a confirm-before-delete cascade if
+          // that file is later removed from Storage. Only spreadsheet-created
+          // bidders get this - manifest-ZIP imports attach docs to existing
+          // bidders, they don't create rows here.
+          importBatchId: batch.id,
         },
       });
       created++;
