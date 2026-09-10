@@ -3,18 +3,33 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { ScoreBadge } from '@/components/ScoreBadge';
 import { RiskBadge } from '@/components/RiskBadge';
+import { ScoreDonut } from '@/components/ScoreDonut';
 import { VerifyButton } from '@/components/VerifyButton';
 import { RequirementRow } from '@/components/RequirementRow';
 import { DecisionForm } from '@/components/DecisionForm';
 import { DocumentUpload } from '@/components/DocumentUpload';
 import { DocumentPreviewButton } from '@/components/DocumentPreviewButton';
 import { StatCard } from '@/components/StatCard';
-import { ShieldCheckIcon, ClipboardIcon } from '@/components/icons';
+import { ShieldCheckIcon, ClipboardIcon, LinkIcon, BankIcon, TimelineIcon, SparkIcon } from '@/components/icons';
 import type { RequirementEvaluation } from '@/lib/rulesEngine';
 import { getSession } from '@/lib/session';
 import { canViewBidder, canRunVerification, canUploadDocumentFor } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
+
+// Real VerificationResult.status → shared status-badge class.
+function statusBadge(status: string): string {
+  if (status === 'VERIFIED_OK') return 'badge-success';
+  if (status === 'VERIFIED_FAIL') return 'badge-critical';
+  return 'badge-warning'; // INCONSISTENT / MISSING / ERROR
+}
+const statusText: Record<string, string> = {
+  VERIFIED_OK: 'Verified',
+  VERIFIED_FAIL: 'Failed',
+  INCONSISTENT: 'Inconsistent',
+  MISSING: 'Missing',
+  ERROR: 'Error',
+};
 
 export default async function BidderDetailPage({ params }: { params: { id: string } }) {
   const bidder = await prisma.bidder.findUnique({
@@ -52,13 +67,28 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   // genuinely document-backed requirement rows below.
   const documentsByType = new Map(bidder.documents.map((d) => [d.docType, d]));
 
-  // Verification method per requirement, for the honesty tag ("real
-  // algorithm" vs "simulated") - taken from the most recent
-  // VerificationResult for that requirement code.
-  const methodByCode = new Map<string, string>();
+  // Latest VerificationResult per requirement code (results are ordered desc).
+  const latestVr = new Map<string, (typeof bidder.verificationResults)[number]>();
   for (const vr of bidder.verificationResults) {
-    if (!methodByCode.has(vr.requirementCode)) methodByCode.set(vr.requirementCode, vr.method);
+    if (!latestVr.has(vr.requirementCode)) latestVr.set(vr.requirementCode, vr);
   }
+  const methodByCode = new Map<string, string>();
+  for (const [code, vr] of latestVr) methodByCode.set(code, vr.method);
+
+  // The statutory-integration bento: real VerificationResult rows for the
+  // pan / gst / udyam / blacklist / makeInIndia providers, badge colour from
+  // the real status. Only shown once verification has produced a result.
+  const integrations = (
+    [
+      { code: 'PAN_IT_COMPLIANCE', label: 'Income Tax (PAN)', id: bidder.pan },
+      { code: 'GST_FILING', label: 'GST Network', id: bidder.gstin },
+      { code: 'UDYAM_STATUS', label: 'Udyam / MSME Registration', id: bidder.udyamNumber },
+      { code: 'BLACKLIST_CHECK', label: 'Blacklisting / Debarment', id: bidder.pan ?? bidder.gstin },
+      { code: 'MAKE_IN_INDIA_LOCAL_CONTENT', label: 'Make in India — Local Content', id: null },
+    ] as const
+  )
+    .map((x) => ({ ...x, vr: latestVr.get(x.code) }))
+    .filter((x) => x.vr);
 
   // Is the Make-in-India local-content requirement waived for this tender?
   // If so, uploading a local-content certificate here is a dead end.
@@ -72,44 +102,51 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
   const oemRequired = bidder.tender.requirements.some((r) => r.code === 'OEM_AUTHORIZATION' && r.mandatory);
 
   // Who can do what on this page (all also enforced server-side in
-  // src/lib/actions.ts - the UI state here is a courtesy, not the guard):
-  //  - verification: Procurement Officer only. A Viewer sees it disabled; a
-  //    Bidder doesn't see it (verification is officer/system-triggered).
-  //  - document upload: the Procurement Officer, or the bidder for their own
-  //    company (guaranteed to be their own by the access check above).
-  //  - recording a decision: Procurement Officer only (DecisionForm handles it).
+  // src/lib/actions.ts - the UI state here is a courtesy, not the guard).
   const canVerify = canRunVerification(session);
   const canUpload = canUploadDocumentFor(session, bidder.companySlug);
   const viewerNote = 'Read-only — only a Procurement Officer can do this. You are signed in as a Viewer.';
 
+  const idField = (label: string, value: string | number | null | undefined) => (
+    <div>
+      <dt className="text-label uppercase tracking-wide text-ink-faint">{label}</dt>
+      <dd className="mt-0.5 font-mono text-sm text-ink">{value ?? '—'}</dd>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <Link href={`/tenders/${bidder.tenderId}`} className="text-sm text-slate-500 hover:text-chakra hover:underline">
-          ← Back to tender
-        </Link>
-      </div>
+      <Link href={`/tenders/${bidder.tenderId}`} className="text-sm text-ink-muted transition-colors hover:text-navy">
+        ← Back to tender
+      </Link>
 
-      <div className="card flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            {bidder.tender.referenceNo} · {bidder.tender.title}
-          </p>
-          <h2 className="text-xl font-semibold">{bidder.name}</h2>
-          <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-600 sm:grid-cols-4">
-            <div><dt className="text-xs text-slate-400">Udyam No.</dt><dd>{bidder.udyamNumber ?? '—'}</dd></div>
-            <div><dt className="text-xs text-slate-400">GSTIN</dt><dd>{bidder.gstin ?? '—'}</dd></div>
-            <div><dt className="text-xs text-slate-400">PAN</dt><dd>{bidder.pan ?? '—'}</dd></div>
-            <div><dt className="text-xs text-slate-400">Claimed Turnover</dt><dd>₹{bidder.claimedTurnoverInrLakh ?? '—'} L</dd></div>
+      {/* Header */}
+      <div className="card flex flex-wrap items-start justify-between gap-6">
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="mono-chip">{bidder.tender.referenceNo}</span>
+            {latestScore && (
+              <span className={`badge ${latestScore.riskLevel === 'HIGH' ? 'badge-critical' : latestScore.riskLevel === 'MEDIUM' ? 'badge-warning' : 'badge-success'}`}>
+                {latestScore.riskLevel} risk
+              </span>
+            )}
+          </div>
+          <h1 className="font-heading text-h1 text-ink">{bidder.name}</h1>
+          <p className="mt-1 text-sm text-ink-muted">{bidder.tender.title}</p>
+          <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+            {idField('Udyam No.', bidder.udyamNumber)}
+            {idField('GSTIN', bidder.gstin)}
+            {idField('PAN', bidder.pan)}
+            {idField('Claimed turnover', bidder.claimedTurnoverInrLakh != null ? `₹${bidder.claimedTurnoverInrLakh} L` : null)}
           </dl>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-end gap-3">
           <div className="flex items-center gap-2">
             <ScoreBadge score={latestScore?.complianceScore ?? null} />
             <RiskBadge level={latestScore?.riskLevel ?? null} />
           </div>
           {session?.role === 'bidder' ? (
-            <span className="text-[11px] text-slate-400">Verification is run by the Procurement Officer.</span>
+            <span className="text-[11px] text-ink-faint">Verification is run by the Procurement Officer.</span>
           ) : (
             <VerifyButton
               bidderId={bidder.id}
@@ -120,209 +157,279 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         </div>
       </div>
 
-      {latestScore && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard
-            icon={<ShieldCheckIcon />}
-            value={`${latestScore.complianceScore}/100`}
-            label="Compliance score"
-          />
-          <StatCard
-            icon={<ShieldCheckIcon />}
-            value={latestScore.riskLevel}
-            label="Risk level"
-            badge={latestScore.riskLevel === 'HIGH' ? 'needs attention' : undefined}
-            badgeTone="amber"
-          />
-          <StatCard
-            icon={<ClipboardIcon />}
-            value={gapCount}
-            label={gapCount === 1 ? 'requirement needs attention' : 'requirements need attention'}
-            badge={gapCount === 0 ? 'all clear' : undefined}
-            badgeTone="green"
-          />
-        </div>
-      )}
-
-      {latestScore && (
-        <div className="card">
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">AI Recommendation</h3>
-          <p className="whitespace-pre-line text-sm text-slate-800">{latestScore.aiRecommendation}</p>
-          <p className="mt-2 text-xs text-slate-400">
-            Decision support only — final qualification/disqualification is the Procurement Officer&apos;s decision.
-          </p>
-        </div>
-      )}
-
-      <div className="card">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Requirement-by-Requirement Status</h3>
-        {evaluations.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            {session?.role === 'bidder'
-              ? 'No verification run yet — the Procurement Officer runs the compliance checks once your documents are in.'
-              : 'No verification run yet — click "Run Verification" above.'}
-          </p>
-        ) : (
-          <table className="w-full text-left">
-            <tbody>
-              {evaluations.map((e) => {
-                const evidenceDoc =
-                  e.code === 'OEM_AUTHORIZATION'
-                    ? documentsByType.get('OEM_AUTHORIZATION_CERTIFICATE')
-                    : e.code === 'MAKE_IN_INDIA_LOCAL_CONTENT'
-                      ? documentsByType.get('LOCAL_CONTENT_CERTIFICATE')
-                      : e.code === 'GST_FILING'
-                        ? documentsByType.get('GST_CERTIFICATE')
-                        : e.code === 'PAN_IT_COMPLIANCE'
-                          ? documentsByType.get('PAN_CARD')
-                          : e.code === 'UDYAM_STATUS'
-                            ? documentsByType.get('UDYAM_CERTIFICATE')
-                            : undefined;
-                return (
-                  <RequirementRow
-                    key={e.code}
-                    label={e.label}
-                    mandatory={e.mandatory}
-                    outcome={e.outcome}
-                    reason={e.reason}
-                    method={methodByCode.get(e.code)}
-                    evidenceFileName={evidenceDoc?.fileName}
-                    evidenceDocId={evidenceDoc?.id}
-                    evidenceMimeType={evidenceDoc?.mimeType}
-                  />
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="card">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Documents</h3>
-        <div className="mb-4 space-y-3">
-          {oemRequired && (
-            <DocumentUpload
-              bidderId={bidder.id}
-              docType="OEM_AUTHORIZATION_CERTIFICATE"
-              label="OEM Authorization Certificate"
-              disabled={!canUpload}
-              disabledTitle="Upload OEM Authorization Certificate"
-              disabledNote={viewerNote}
-            />
-          )}
-          <DocumentUpload
-            bidderId={bidder.id}
-            docType="LOCAL_CONTENT_CERTIFICATE"
-            label="Local Content Certificate"
-            disabled={miiWaived || !canUpload}
-            disabledTitle={miiWaived ? undefined : 'Upload Local Content Certificate'}
-            disabledNote={
-              miiWaived
-                ? "Make in India certification is waived for this tender (competent-authority approval on file) — uploads here won't affect this bidder's evaluation."
-                : viewerNote
-            }
-          />
-          <DocumentUpload
-            bidderId={bidder.id}
-            docType="PAN_CARD"
-            label="PAN Card"
-            disabled={!canUpload}
-            disabledTitle="Upload PAN Card"
-            disabledNote={viewerNote}
-          />
-          <DocumentUpload
-            bidderId={bidder.id}
-            docType="GST_CERTIFICATE"
-            label="GST Registration Certificate"
-            disabled={!canUpload}
-            disabledTitle="Upload GST Registration Certificate"
-            disabledNote={viewerNote}
-          />
-          <DocumentUpload
-            bidderId={bidder.id}
-            docType="UDYAM_CERTIFICATE"
-            label="Udyam Registration Certificate"
-            disabled={!canUpload}
-            disabledTitle="Upload Udyam Registration Certificate"
-            disabledNote={viewerNote}
-          />
-          <p className="text-xs text-slate-400">
-            PAN Card / GST Certificate / Udyam Certificate are optional — GST, PAN and Udyam already verify against the
-            declared field either way. Uploading one adds a real document-read cross-check on top (catches a wrong or
-            mismatched file); it never removes or replaces the existing check.
-          </p>
-        </div>
-        {bidder.documents.length === 0 ? (
-          <p className="text-sm text-slate-500">No documents on file yet.</p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {bidder.documents.map((doc) => (
-              <li key={doc.id} className="rounded-md border border-slate-100 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{doc.fileName}</span>
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">{doc.docType}</span>
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
-                    {doc.mimeType ? `uploaded file · ${doc.mimeType}` : 'simulated OCR text'}
-                  </span>
-                  {doc.mimeType && (
-                    <DocumentPreviewButton documentId={doc.id} fileName={doc.fileName} mimeType={doc.mimeType} />
-                  )}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        {/* ---- Main column ---- */}
+        <div className="min-w-0 space-y-6">
+          {/* Bento: Statutory Integrations + Financials */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="card lg:col-span-2">
+              <h3 className="section-title">
+                <LinkIcon className="h-5 w-5" /> Statutory Integrations
+              </h3>
+              {integrations.length === 0 ? (
+                <p className="text-sm text-ink-muted">
+                  No verification run yet — the pan / GST / Udyam / blacklist / Make-in-India checks appear here once
+                  verification has run.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {integrations.map(({ code, label, id, vr }) => (
+                    <div key={code} className="flex items-start justify-between gap-3 rounded border border-line bg-surface p-4">
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-semibold text-ink">{label}</h4>
+                        <p className="mt-0.5 truncate font-mono text-data text-ink-muted">{id ?? 'declared field / registry'}</p>
+                      </div>
+                      <span className={`badge shrink-0 ${statusBadge(vr!.status)}`}>{statusText[vr!.status] ?? vr!.status}</span>
+                    </div>
+                  ))}
                 </div>
-                {doc.rawText && <p className="mt-2 text-xs text-slate-500">{doc.rawText}</p>}
-                {doc.extractedData && (
-                  <div className="mt-2">
-                    <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">AI-extracted fields</div>
-                    <pre className="mt-1 overflow-x-auto rounded bg-slate-50 p-2 text-xs text-slate-600">
-                      {JSON.stringify(JSON.parse(doc.extractedData), null, 2)}
-                    </pre>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              )}
+            </div>
 
-      <div className={session?.role === 'bidder' ? '' : 'grid gap-6 sm:grid-cols-2'}>
-        {/* The decision-input panel is officer tooling; a bidder sees only the
-            outcome (Decision History below), which is their own data. */}
-        {session?.role !== 'bidder' && (
-          <DecisionForm
-            bidderId={bidder.id}
-            officerName={session?.name ?? ''}
-            canRecord={session?.role === 'officer'}
-          />
-        )}
+            <div className="card flex flex-col">
+              <h3 className="section-title">
+                <BankIcon className="h-5 w-5" /> Financials
+              </h3>
+              <dl className="space-y-3 text-sm">
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <dt className="text-ink-muted">Claimed annual turnover</dt>
+                  <dd className="font-mono font-semibold text-ink">
+                    {bidder.claimedTurnoverInrLakh != null ? `₹ ${bidder.claimedTurnoverInrLakh} L` : '—'}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <dt className="text-ink-muted">Claimed employee count</dt>
+                  <dd className="font-mono font-semibold text-ink">{bidder.claimedEmployeeCount ?? '—'}</dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-xs text-ink-faint">
+                Self-declared by the bidder; not independently verified in this build.
+              </p>
+            </div>
+          </div>
 
-        <div className="card">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Decision History</h3>
-          {bidder.decisions.length === 0 ? (
-            <p className="text-sm text-slate-500">No decision recorded yet.</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {bidder.decisions.map((d) => (
-                <li key={d.id} className="rounded-md border border-slate-100 p-2">
-                  <div className="font-medium">{d.outcome}</div>
-                  <div className="text-xs text-slate-500">
-                    {d.officerName} · {new Date(d.decidedAt).toLocaleString()}
-                  </div>
-                  {d.remarks && <div className="mt-1 text-slate-600">{d.remarks}</div>}
-                </li>
-              ))}
-            </ul>
+          {latestScore && (
+            <div className="card">
+              <h3 className="section-title">
+                <SparkIcon className="h-5 w-5" /> AI Recommendation
+              </h3>
+              <p className="whitespace-pre-line text-sm text-ink">{latestScore.aiRecommendation}</p>
+              <p className="mt-3 text-xs text-ink-faint">
+                Decision support only — final qualification / disqualification is the Procurement Officer&apos;s decision.
+              </p>
+            </div>
           )}
-        </div>
-      </div>
 
-      <div className="card">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Audit Trail (most recent 20)</h3>
-        <ul className="space-y-1 text-xs text-slate-500">
-          {bidder.auditLogs.map((log) => (
-            <li key={log.id} className="border-b border-slate-100 py-1.5">
-              <span className="font-mono">{new Date(log.createdAt).toLocaleString()}</span> — <span className="font-medium">{log.actor}</span>: {log.action}
-            </li>
-          ))}
-        </ul>
+          <div className="card">
+            <h3 className="section-title">
+              <ClipboardIcon className="h-5 w-5" /> Requirement-by-Requirement Status
+            </h3>
+            {evaluations.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                {session?.role === 'bidder'
+                  ? 'No verification run yet — the Procurement Officer runs the compliance checks once your documents are in.'
+                  : 'No verification run yet — click "Run Verification" above.'}
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <tbody>
+                    {evaluations.map((e) => {
+                      const evidenceDoc =
+                        e.code === 'OEM_AUTHORIZATION'
+                          ? documentsByType.get('OEM_AUTHORIZATION_CERTIFICATE')
+                          : e.code === 'MAKE_IN_INDIA_LOCAL_CONTENT'
+                            ? documentsByType.get('LOCAL_CONTENT_CERTIFICATE')
+                            : e.code === 'GST_FILING'
+                              ? documentsByType.get('GST_CERTIFICATE')
+                              : e.code === 'PAN_IT_COMPLIANCE'
+                                ? documentsByType.get('PAN_CARD')
+                                : e.code === 'UDYAM_STATUS'
+                                  ? documentsByType.get('UDYAM_CERTIFICATE')
+                                  : undefined;
+                      return (
+                        <RequirementRow
+                          key={e.code}
+                          label={e.label}
+                          mandatory={e.mandatory}
+                          outcome={e.outcome}
+                          reason={e.reason}
+                          method={methodByCode.get(e.code)}
+                          evidenceFileName={evidenceDoc?.fileName}
+                          evidenceDocId={evidenceDoc?.id}
+                          evidenceMimeType={evidenceDoc?.mimeType}
+                        />
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <h3 className="section-title">Documents</h3>
+            <div className="mb-4 space-y-3">
+              {oemRequired && (
+                <DocumentUpload
+                  bidderId={bidder.id}
+                  docType="OEM_AUTHORIZATION_CERTIFICATE"
+                  label="OEM Authorization Certificate"
+                  disabled={!canUpload}
+                  disabledTitle="Upload OEM Authorization Certificate"
+                  disabledNote={viewerNote}
+                />
+              )}
+              <DocumentUpload
+                bidderId={bidder.id}
+                docType="LOCAL_CONTENT_CERTIFICATE"
+                label="Local Content Certificate"
+                disabled={miiWaived || !canUpload}
+                disabledTitle={miiWaived ? undefined : 'Upload Local Content Certificate'}
+                disabledNote={
+                  miiWaived
+                    ? "Make in India certification is waived for this tender (competent-authority approval on file) — uploads here won't affect this bidder's evaluation."
+                    : viewerNote
+                }
+              />
+              <DocumentUpload
+                bidderId={bidder.id}
+                docType="PAN_CARD"
+                label="PAN Card"
+                disabled={!canUpload}
+                disabledTitle="Upload PAN Card"
+                disabledNote={viewerNote}
+              />
+              <DocumentUpload
+                bidderId={bidder.id}
+                docType="GST_CERTIFICATE"
+                label="GST Registration Certificate"
+                disabled={!canUpload}
+                disabledTitle="Upload GST Registration Certificate"
+                disabledNote={viewerNote}
+              />
+              <DocumentUpload
+                bidderId={bidder.id}
+                docType="UDYAM_CERTIFICATE"
+                label="Udyam Registration Certificate"
+                disabled={!canUpload}
+                disabledTitle="Upload Udyam Registration Certificate"
+                disabledNote={viewerNote}
+              />
+              <p className="text-xs text-ink-faint">
+                PAN Card / GST Certificate / Udyam Certificate are optional — GST, PAN and Udyam already verify against the
+                declared field either way. Uploading one adds a real document-read cross-check on top (catches a wrong or
+                mismatched file); it never removes or replaces the existing check.
+              </p>
+            </div>
+            {bidder.documents.length === 0 ? (
+              <p className="text-sm text-ink-muted">No documents on file yet.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {bidder.documents.map((doc) => (
+                  <li key={doc.id} className="rounded border border-line p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-ink">{doc.fileName}</span>
+                      <span className="rounded bg-surface-container px-1.5 py-0.5 font-mono text-[11px] text-ink-muted">{doc.docType}</span>
+                      <span className="rounded bg-surface-container px-1.5 py-0.5 text-[11px] text-ink-muted">
+                        {doc.mimeType ? `uploaded file · ${doc.mimeType}` : 'simulated OCR text'}
+                      </span>
+                      {doc.mimeType && (
+                        <DocumentPreviewButton documentId={doc.id} fileName={doc.fileName} mimeType={doc.mimeType} />
+                      )}
+                    </div>
+                    {doc.rawText && <p className="mt-2 text-xs text-ink-muted">{doc.rawText}</p>}
+                    {doc.extractedData && (
+                      <div className="mt-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">AI-extracted fields</div>
+                        <pre className="mt-1 overflow-x-auto rounded bg-surface p-2 font-mono text-xs text-ink-muted">
+                          {JSON.stringify(JSON.parse(doc.extractedData), null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className={session?.role === 'bidder' ? '' : 'grid gap-6 sm:grid-cols-2'}>
+            {/* The decision-input panel is officer tooling; a bidder sees only the
+                outcome (Decision History below), which is their own data. */}
+            {session?.role !== 'bidder' && (
+              <DecisionForm bidderId={bidder.id} officerName={session?.name ?? ''} canRecord={session?.role === 'officer'} />
+            )}
+
+            <div className="card">
+              <h3 className="section-title">Decision History</h3>
+              {bidder.decisions.length === 0 ? (
+                <p className="text-sm text-ink-muted">No decision recorded yet.</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {bidder.decisions.map((d) => (
+                    <li key={d.id} className="rounded border border-line p-3">
+                      <div className="font-semibold text-ink">{d.outcome}</div>
+                      <div className="text-xs text-ink-faint">
+                        {d.officerName} · {new Date(d.decidedAt).toLocaleString()}
+                      </div>
+                      {d.remarks && <div className="mt-1 text-ink-muted">{d.remarks}</div>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <h3 className="section-title">
+              <TimelineIcon className="h-5 w-5" /> Verification Audit Trail
+            </h3>
+            {bidder.auditLogs.length === 0 ? (
+              <p className="text-sm text-ink-muted">No audit entries yet.</p>
+            ) : (
+              <ol className="relative space-y-4 border-l-2 border-navy/25 pl-6">
+                {bidder.auditLogs.map((log) => (
+                  <li key={log.id} className="relative">
+                    <span className="absolute -left-[29px] top-1 h-3 w-3 rounded-full border-2 border-surface-lowest bg-navy" aria-hidden="true" />
+                    <div className="rounded border border-line bg-surface p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-navy">{log.action}</span>
+                        <span className="font-mono text-data text-ink-faint">{new Date(log.createdAt).toLocaleString()}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-ink-muted">{log.actor}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        {/* ---- Right rail: compliance score panel ---- */}
+        <aside className="space-y-4 xl:sticky xl:top-20 xl:self-start">
+          <div className="card border-line/80 bg-surface-lowest/80 shadow-rail backdrop-blur-sm">
+            {latestScore ? (
+              <>
+                <ScoreDonut score={latestScore.complianceScore} riskLevel={latestScore.riskLevel} />
+                <div className="mt-5 grid gap-3">
+                  <StatCard icon={<ClipboardIcon />} value={gapCount} label={gapCount === 1 ? 'requirement needs attention' : 'requirements need attention'} badge={gapCount === 0 ? 'all clear' : undefined} badgeTone="green" />
+                </div>
+              </>
+            ) : (
+              <div className="text-center">
+                <span className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded bg-navy/10 text-navy">
+                  <ShieldCheckIcon className="h-5 w-5" />
+                </span>
+                <p className="mt-3 text-sm font-medium text-ink">Not yet scored</p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  {session?.role === 'bidder'
+                    ? 'The Procurement Officer runs verification once your documents are in.'
+                    : 'Run verification to compute this bidder’s compliance score.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );
