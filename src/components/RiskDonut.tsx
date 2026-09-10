@@ -23,7 +23,7 @@ export function RiskDonut({ low, medium, high }: { low: number; medium: number; 
     <div className="flex items-center gap-5">
       <div className="relative h-24 w-24 shrink-0">
         <svg viewBox="0 0 40 40" className="h-24 w-24 -rotate-90">
-          <circle cx="20" cy="20" r={r} fill="none" className="stroke-slate-200" strokeWidth="6" />
+          <circle cx="20" cy="20" r={r} fill="none" className="stroke-surface-highest" strokeWidth="6" />
           {segments.map((s, i) => {
             const len = total === 0 ? 0 : (s.v / total) * C;
             const node = (
@@ -44,8 +44,8 @@ export function RiskDonut({ low, medium, high }: { low: number; medium: number; 
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-lg font-semibold leading-none text-slate-900">{total}</span>
-          <span className="text-[10px] text-slate-400">scored</span>
+          <span className="font-heading text-h2 font-bold leading-none text-navy">{total}</span>
+          <span className="text-[10px] text-ink-faint">scored</span>
         </div>
       </div>
 
@@ -59,12 +59,12 @@ export function RiskDonut({ low, medium, high }: { low: number; medium: number; 
         ).map(([label, v, dot]) => (
           <div key={label} className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden="true" />
-            <span className="w-16 font-medium text-slate-600">{label}</span>
-            <span className="tabular-nums text-slate-900">{v}</span>
-            <span className="text-slate-400">{total === 0 ? '' : `(${Math.round((v / total) * 100)}%)`}</span>
+            <span className="w-16 font-medium text-ink-muted">{label}</span>
+            <span className="font-mono tabular-nums text-ink">{v}</span>
+            <span className="text-ink-faint">{total === 0 ? '' : `(${Math.round((v / total) * 100)}%)`}</span>
           </div>
         ))}
-        {total === 0 && <p className="pt-1 text-slate-400">No bidders verified yet — run verification on a tender.</p>}
+        {total === 0 && <p className="pt-1 text-ink-faint">No bidders verified yet — run verification on a tender.</p>}
       </div>
     </div>
   );

@@ -34,37 +34,24 @@ export function VerifyButton({
   if (disabledReason) {
     return (
       <span className="inline-flex flex-col items-end gap-1">
-        <button
-          type="button"
-          disabled
-          title={disabledReason}
-          className="inline-flex items-center gap-1.5 rounded-md bg-saffron-700 px-3 py-1.5 text-sm font-medium text-white opacity-40"
-        >
+        <button type="button" disabled title={disabledReason} className="btn-primary opacity-40">
           {label}
         </button>
-        {!compact && <span className="max-w-[16rem] text-right text-[11px] text-slate-400">{disabledReason}</span>}
+        {!compact && <span className="max-w-[16rem] text-right text-[11px] text-ink-faint">{disabledReason}</span>}
       </span>
     );
   }
 
   return (
     <span className="inline-flex flex-col items-end gap-1">
-      <button
-        type="button"
-        disabled={isPending}
-        onClick={handleClick}
-        className="inline-flex items-center gap-1.5 rounded-md bg-saffron-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-saffron-800 disabled:opacity-50"
-      >
+      <button type="button" disabled={isPending} onClick={handleClick} className="btn-primary">
         {isPending && (
-          <span
-            className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
-            aria-hidden="true"
-          />
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
         )}
         {isPending ? 'Verifying…' : label}
       </button>
-      {isPending && <span className="text-[11px] text-slate-400">Running checks, ~5–10s…</span>}
-      {error && <span className="max-w-[16rem] text-right text-[11px] text-red-600">{error}</span>}
+      {isPending && <span className="text-[11px] text-ink-faint">Running checks, ~5–10s…</span>}
+      {error && <span className="max-w-[16rem] text-right text-[11px] text-critical">{error}</span>}
     </span>
   );
 }

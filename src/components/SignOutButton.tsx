@@ -5,7 +5,7 @@ import { signOut } from '@/lib/authActions';
 export function SignOutButton() {
   return (
     <form action={signOut}>
-      <button type="submit" className="text-xs font-medium text-slate-500 underline hover:text-slate-800">
+      <button type="submit" className="text-xs font-medium text-ink-faint underline hover:text-navy">
         Sign out
       </button>
     </form>
