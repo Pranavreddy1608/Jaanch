@@ -1,28 +1,46 @@
-import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/session';
+import { StatCard } from '@/components/StatCard';
+import { RiskDonut } from '@/components/RiskDonut';
+import { TenderList, type TenderRow } from '@/components/TenderList';
+import { GridIcon, UsersIcon, ShieldCheckIcon, FileIcon } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
 
-const fmtDate = (d: Date) =>
-  d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtDate = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default async function DashboardPage() {
   const session = getSession();
   const isBidder = session?.role === 'bidder';
+  const companySlug = isBidder ? session!.companySlug : undefined;
 
-  // A bidder only ever sees tenders they are actually registered on - this is
-  // a filter on the query itself, not a UI hide.
+  // A bidder only ever sees tenders they are actually registered on - filter
+  // on the query itself, not a UI hide.
   const tenders = await prisma.tender.findMany({
-    where: isBidder ? { bidders: { some: { companySlug: session!.companySlug } } } : undefined,
+    where: isBidder ? { bidders: { some: { companySlug } } } : undefined,
     orderBy: { createdAt: 'asc' },
     include: { _count: { select: { bidders: true } } },
   });
 
   const companyName = isBidder
-    ? (await prisma.bidder.findFirst({ where: { companySlug: session!.companySlug }, select: { name: true } }))?.name ??
-      'Your company'
+    ? (await prisma.bidder.findFirst({ where: { companySlug }, select: { name: true } }))?.name ?? 'Your company'
     : null;
+
+  // --- KPI numbers, all straight from Prisma ---
+  // Latest Score per bidder (scoped for a bidder). One row per bidderId, newest first.
+  const scoreRows = await prisma.score.findMany({
+    where: isBidder ? { bidder: { companySlug } } : undefined,
+    orderBy: { computedAt: 'desc' },
+    select: { bidderId: true, riskLevel: true },
+  });
+  const latestRiskByBidder = new Map<string, string>();
+  for (const s of scoreRows) if (!latestRiskByBidder.has(s.bidderId)) latestRiskByBidder.set(s.bidderId, s.riskLevel);
+  const verifiedCount = latestRiskByBidder.size;
+  const dist = { LOW: 0, MEDIUM: 0, HIGH: 0 };
+  for (const r of latestRiskByBidder.values()) if (r === 'LOW' || r === 'MEDIUM' || r === 'HIGH') dist[r]++;
+
+  const totalBidders = tenders.reduce((s, t) => s + t._count.bidders, 0); // officer only - includes competitors
+  const myDocs = isBidder ? await prisma.document.count({ where: { bidder: { companySlug } } }) : 0;
 
   if (tenders.length === 0) {
     return (
@@ -41,7 +59,17 @@ export default async function DashboardPage() {
     );
   }
 
-  const now = Date.now();
+  const rows: TenderRow[] = tenders.map((t) => ({
+    id: t.id,
+    title: t.title,
+    referenceNo: t.referenceNo,
+    organization: t.organization,
+    category: t.category,
+    documentDated: t.documentDated ? fmtDate(t.documentDated) : null,
+    bidEndsAt: t.bidEndsAt ? fmtDate(t.bidEndsAt) : null,
+    closed: t.bidEndsAt ? t.bidEndsAt.getTime() < Date.now() : false,
+    bidderCount: t._count.bidders,
+  }));
 
   return (
     <div className="space-y-6">
@@ -62,58 +90,48 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {tenders.map((t) => {
-          const closed = t.bidEndsAt ? t.bidEndsAt.getTime() < now : false;
-          return (
-            <Link
-              key={t.id}
-              href={`/tenders/${t.id}`}
-              className="grid w-full gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1.8fr)_minmax(0,1.1fr)_auto] sm:items-start"
-            >
-              {/* Title + reference */}
-              <div className="min-w-0">
-                <h3 className="font-semibold text-slate-900 hover:text-chakra">{t.title}</h3>
-                <div className="mt-0.5 text-xs text-slate-400">{t.referenceNo}</div>
-              </div>
-
-              {/* Organisation + category */}
-              <div className="min-w-0 text-xs text-slate-600">
-                <div>{t.organization}</div>
-                <div className="mt-1 text-slate-400">{t.category}</div>
-              </div>
-
-              {/* Dates */}
-              <div className="text-xs text-slate-600">
-                {t.documentDated && (
-                  <div>
-                    <span className="text-slate-400">Document dated:</span> {fmtDate(t.documentDated)}
-                  </div>
-                )}
-                {t.bidEndsAt && (
-                  <div className="mt-1">
-                    <span className="text-slate-400">Bid closes:</span> {fmtDate(t.bidEndsAt)}
-                  </div>
-                )}
-              </div>
-
-              {/* Status + bidder count */}
-              <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
-                <span
-                  className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    closed ? 'bg-slate-200 text-slate-600' : 'bg-green-100 text-green-800'
-                  }`}
-                >
-                  {closed ? 'Closed' : 'Open'}
-                </span>
-                <span className="whitespace-nowrap text-xs text-slate-500">
-                  {isBidder ? 'You are registered' : `${t._count.bidders} ${t._count.bidders === 1 ? 'bidder' : 'bidders'}`}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
+      {/* KPI row - every number computed from Prisma above */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          icon={<GridIcon />}
+          value={tenders.length}
+          label={isBidder ? 'Tenders you are registered on' : 'GeM tenders loaded'}
+        />
+        {isBidder ? (
+          <>
+            <StatCard
+              icon={<ShieldCheckIcon />}
+              value={verifiedCount}
+              label={`of ${tenders.length} verified by the officer`}
+              badge={verifiedCount === tenders.length ? 'all done' : 'in progress'}
+              badgeTone={verifiedCount === tenders.length ? 'green' : 'amber'}
+            />
+            <StatCard icon={<FileIcon />} value={myDocs} label="Documents you have uploaded" />
+          </>
+        ) : (
+          <>
+            <StatCard icon={<UsersIcon />} value={totalBidders} label="Bidders across all tenders" />
+            <StatCard
+              icon={<ShieldCheckIcon />}
+              value={verifiedCount}
+              label={`of ${totalBidders} bidders verified so far`}
+              badge={dist.HIGH > 0 ? `${dist.HIGH} high-risk` : undefined}
+              badgeTone="amber"
+            />
+          </>
+        )}
       </div>
+
+      {!isBidder && (
+        <div className="card w-full lg:max-w-lg">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Risk distribution — latest verification per bidder
+          </h3>
+          <RiskDonut low={dist.LOW} medium={dist.MEDIUM} high={dist.HIGH} />
+        </div>
+      )}
+
+      <TenderList tenders={rows} isBidder={isBidder} />
     </div>
   );
 }
