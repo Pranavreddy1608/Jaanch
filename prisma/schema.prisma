@@ -53,6 +53,11 @@ model ImportBatch {
   processedAt    DateTime @default(now())
   recordsCreated Int
   summary        String?
+  // Set by cascadeDeleteImport when this import's source file was removed from
+  // Storage and its bidders were auto-reverted. The row is kept as history;
+  // once this is non-null the storagePath no longer counts as "already
+  // imported", so re-uploading a file under the same name imports fresh.
+  revertedAt     DateTime?
   tenders        Tender[]
   bidders        Bidder[]
 }

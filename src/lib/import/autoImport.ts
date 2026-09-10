@@ -67,9 +67,15 @@ function tryLock<T>(fn: () => Promise<T>): Promise<T | null> {
   return withLock(fn);
 }
 
-/** storagePaths already committed as an ImportBatch (idempotency across reconnects/restarts). */
+/**
+ * storagePaths that count as "already imported" - idempotency across
+ * reconnects / restarts. A reverted batch (revertedAt set: its source file
+ * was deleted and its bidders auto-wiped) is excluded, so re-uploading a file
+ * under that same name is treated as new and imported again into a fresh
+ * ImportBatch row. The old reverted row stays as history.
+ */
 async function committedPaths(): Promise<Set<string>> {
-  const rows = await prisma.importBatch.findMany({ select: { storagePath: true } });
+  const rows = await prisma.importBatch.findMany({ where: { revertedAt: null }, select: { storagePath: true } });
   return new Set(rows.map((r) => r.storagePath));
 }
 
@@ -99,7 +105,10 @@ async function bucketObjectNames(): Promise<string[]> {
  */
 async function purgeDeletedImports(currentNames: string[]): Promise<void> {
   const present = new Set(currentNames);
-  const batches = await prisma.importBatch.findMany({ select: { id: true, storagePath: true } });
+  // Only batches not already reverted - a second pass over an already-reverted
+  // one is a guaranteed no-op (its bidders are gone) so there's no point, and
+  // it keeps the "0 live bidders" guard below from ever firing on one.
+  const batches = await prisma.importBatch.findMany({ where: { revertedAt: null }, select: { id: true, storagePath: true } });
 
   for (const batch of batches) {
     if (present.has(batch.storagePath)) continue; // source file still there
@@ -282,6 +291,9 @@ export async function cascadeDeleteImport(importBatchId: string): Promise<Cascad
     prisma.verificationResult.deleteMany({ where: w }),
     prisma.document.deleteMany({ where: w }),
     prisma.bidder.deleteMany({ where: { id: { in: ids } } }),
+    // Mark (don't delete) the batch. Frees its storagePath so a re-upload
+    // under the same name imports fresh (see committedPaths).
+    prisma.importBatch.update({ where: { id: importBatchId }, data: { revertedAt: new Date() } }),
   ]);
 
   const decisionNote = dec.count > 0 ? ` — INCLUDED ${dec.count} OFFICER DECISION${dec.count === 1 ? '' : 'S'}` : '';
@@ -292,7 +304,7 @@ export async function cascadeDeleteImport(importBatchId: string): Promise<Cascad
     detail:
       `source file gone from Storage — auto-removed ${bid.count} bidder(s) ` +
       `(${tenders.join(', ')}), ${doc.count} document(s), ${sc.count} score(s), ${vr.count} verification result(s), ` +
-      `${al.count} audit log(s)${decisionNote}. Tenders and the ImportBatch record kept.`,
+      `${al.count} audit log(s)${decisionNote}. Tenders kept; ImportBatch row kept and marked reverted (re-uploading this filename will import fresh).`,
     via: 'poll',
     importBatchId,
     recordsCreated: bid.count,
