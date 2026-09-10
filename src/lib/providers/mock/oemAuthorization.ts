@@ -4,14 +4,19 @@ import type { VerificationProvider, VerificationResultPayload } from '../types';
 
 /**
  * Hybrid, same pattern as GST/PAN:
+ *   - MISSING (real) when no OEM_AUTHORIZATION_CERTIFICATE was uploaded at
+ *     all - checking whether a required document is present is a
+ *     deterministic real check, same as gst.ts/pan.ts treat a missing
+ *     GSTIN/PAN. Flows through rulesEngine as mandatory ? NOT_MET :
+ *     NEEDS_REVIEW.
  *   - REAL when an OEM_AUTHORIZATION_CERTIFICATE has been uploaded - the
  *     multimodal LLM (a) checks the document plausibly reads as an OEM
  *     authorization letter and (b) extracts the OEM + authorised-bidder
  *     names, and this provider cross-checks the authorised name against the
  *     bidder. This is a genuine document-content check, not a coin flip.
- *   - SIMULATED fallback (stubRoll) when no document is uploaded - there is
- *     no live OEM-issuer registry to query. Can only pass or flag for
- *     review, never hard-fail.
+ *   - SIMULATED fallback (stubRoll) ONLY when a document WAS uploaded but the
+ *     automated read is inconclusive - there is no live OEM-issuer registry
+ *     to query. Can only pass or flag for review, never hard-fail.
  *
  * What the real check does NOT do: verify the letter is genuinely from the
  * OEM (no issuer to call). That stays a manual / future step.
@@ -48,7 +53,22 @@ export const oemAuthorizationProvider: VerificationProvider = {
   key: 'oemAuthorization',
   async verify({ bidder, documents }): Promise<VerificationResultPayload> {
     const doc = documents.find((d) => d.docType === 'OEM_AUTHORIZATION_CERTIFICATE');
-    const ex = doc?.extractedData as OemAuthorizationExtraction | null | undefined;
+
+    // --- REAL: no OEM authorization certificate uploaded at all. Presence of
+    // a required document is a deterministic check (same as gst.ts/pan.ts do
+    // for a missing GSTIN/PAN), not a simulation - so isMock:false / 'real'.
+    // rulesEngine turns MISSING into NOT_MET for a mandatory requirement. ---
+    if (!doc) {
+      return {
+        status: 'MISSING',
+        confidence: 1,
+        isMock: false,
+        method: 'real',
+        raw: { note: 'No OEM authorization certificate uploaded by the bidder.' },
+      };
+    }
+
+    const ex = doc.extractedData as OemAuthorizationExtraction | null | undefined;
 
     // --- REAL: a document was uploaded and the LLM could read it ---
     if (ex && typeof ex.looksLikeOemAuthLetter === 'boolean') {
@@ -94,7 +114,10 @@ export const oemAuthorizationProvider: VerificationProvider = {
       };
     }
 
-    // --- SIMULATED fallback: no document uploaded (or LLM unavailable) ---
+    // --- SIMULATED fallback: a document WAS uploaded, but the automated read
+    // is inconclusive (no AI provider configured, or the multimodal read
+    // failed). Genuine uncertainty with no live OEM-issuer registry to check
+    // the letter against — can only pass or flag for review, never hard-fail. ---
     const unclear = stubRoll(bidder.key, 'oemAuthorization');
     return {
       status: unclear ? 'INCONSISTENT' : 'VERIFIED_OK',
@@ -103,8 +126,8 @@ export const oemAuthorizationProvider: VerificationProvider = {
       method: 'simulated',
       raw: {
         note: unclear
-          ? `No OEM authorization certificate uploaded, and no live OEM-issuer registry to query (production integration requires ${ROADMAP}). Flagged for manual document review, not a verified failure.`
-          : `No OEM authorization certificate uploaded. Simulated result — production integration requires ${ROADMAP}. Labelled simulation, not a live check.`,
+          ? `An OEM authorization certificate was uploaded but could not be read automatically, and there is no live OEM-issuer registry to query (production integration requires ${ROADMAP}). Flagged for manual document review, not a verified failure.`
+          : `An OEM authorization certificate was uploaded but could not be read automatically. Simulated result — production integration requires ${ROADMAP}. Labelled simulation, not a live check.`,
       },
     };
   },

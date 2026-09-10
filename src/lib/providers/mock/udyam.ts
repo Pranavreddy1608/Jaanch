@@ -12,7 +12,8 @@ export const udyamProvider: VerificationProvider = {
   key: 'udyam',
   async verify({ bidder }): Promise<VerificationResultPayload> {
     if (!bidder.udyamNumber) {
-      return { status: 'MISSING', confidence: 1, isMock: true, raw: { note: 'No Udyam number supplied by bidder.' } };
+      // Presence check is deterministic - real, not simulated (matches gst.ts/pan.ts).
+      return { status: 'MISSING', confidence: 1, isMock: false, method: 'real', raw: { note: 'No Udyam number supplied by bidder.' } };
     }
 
     const record = udyamRegistry[bidder.udyamNumber];

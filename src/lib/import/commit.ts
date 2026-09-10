@@ -136,6 +136,23 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
         notes.push(`Record "${b.name}": tender ${b.tenderReferenceNo} not found — skipped.`);
         continue;
       }
+
+      // Dedupe within a tender (same as the tender loop skips existing tenders).
+      // Bidder.key carries a random suffix so it can't dedupe - use the natural
+      // key: GSTIN, else PAN, else name, all scoped to this tender. Matters for
+      // repeated "Add" of the same spreadsheet; Replace All wiped bidders first
+      // so nothing matches there.
+      const dupWhere = b.gstin
+        ? { tenderId: tender.id, gstin: b.gstin }
+        : b.pan
+          ? { tenderId: tender.id, pan: b.pan }
+          : { tenderId: tender.id, name: b.name! };
+      const existingBidder = await prisma.bidder.findFirst({ where: dupWhere, select: { id: true } });
+      if (existingBidder) {
+        notes.push(`Bidder "${b.name}" already exists on tender ${b.tenderReferenceNo} — skipped.`);
+        continue;
+      }
+
       const companySlug = b.companySlug ?? slug(b.name!);
       const key = `${companySlug}-import-${crypto.randomBytes(3).toString('hex')}`;
       await prisma.bidder.create({
