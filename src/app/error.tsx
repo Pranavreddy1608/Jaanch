@@ -9,26 +9,20 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-red-900">Something went wrong</h2>
-      <p className="mt-1 text-sm text-red-800">
+    <div className="rounded-xl border border-critical/30 bg-critical/5 p-6 shadow-card">
+      <h2 className="font-heading text-h2 text-critical">Something went wrong</h2>
+      <p className="mt-1 text-sm text-ink-muted">
         The page hit an unexpected error. This is a demo build — the pipeline itself falls back safely, so retrying
         usually clears it.
       </p>
       {error?.message && (
-        <pre className="mt-3 overflow-x-auto rounded bg-white/70 p-2 text-xs text-red-700">{error.message}</pre>
+        <pre className="mt-3 overflow-x-auto rounded bg-surface-lowest p-2 font-mono text-xs text-critical">{error.message}</pre>
       )}
       <div className="mt-4 flex gap-2">
-        <button
-          onClick={reset}
-          className="rounded-md bg-saffron-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-saffron-800"
-        >
+        <button onClick={reset} className="btn-primary">
           Try again
         </button>
-        <Link
-          href="/dashboard"
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-white"
-        >
+        <Link href="/dashboard" className="btn-secondary">
           Back to dashboard
         </Link>
       </div>

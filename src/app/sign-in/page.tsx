@@ -15,8 +15,8 @@ export default async function SignInPage() {
   return (
     <div className="mx-auto max-w-sm">
       <div className="card p-6">
-        <h2 className="text-lg font-semibold">Sign in</h2>
-        <p className="mb-4 mt-1 text-sm text-slate-600">
+        <h2 className="font-heading text-h2 text-navy">Sign in</h2>
+        <p className="mb-4 mt-1 text-sm text-ink-muted">
           GeM Bid Compliance Verification Portal — restricted access.
         </p>
         <SignInForm captchaSvg={svg} captchaToken={token} />
