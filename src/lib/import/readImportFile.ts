@@ -20,6 +20,8 @@ function tenderEntry(filename: string, extraction: TenderExtraction): TenderEntr
   return { kind: 'tender', filename, mimeType: 'application/pdf', extraction, blockers };
 }
 
+type ManifestRow = { filename: string; tenderReferenceNo: string; companySlug: string; docType: string };
+
 /** Routes one dataset file to the right extractor. ZIPs are expanded one level. */
 export async function readImportFile(filename: string, buffer: Buffer): Promise<ImportReview> {
   const ext = extOf(filename);
@@ -55,11 +57,55 @@ export async function readImportFile(filename: string, buffer: Buffer): Promise<
     const zipEntries = zip.getEntries().filter((e) => !e.isDirectory);
     if (zipEntries.length === 0) warnings.push('ZIP is empty.');
 
+    // Optional manifest.json at the ZIP root: [{ filename, tenderReferenceNo, companySlug, docType }].
+    // A PDF whose zip path matches a manifest row is a bidder-scoped supporting
+    // document (OEM authorization letter, local-content certificate, etc.) -
+    // NOT a tender document - so it is routed straight to a bidderDocument
+    // entry and never sent through the tender-extraction LLM call. This is
+    // what makes a bidder-documents ZIP import fast regardless of how many
+    // PDFs it contains, and regardless of their total size.
+    let manifest: ManifestRow[] = [];
+    const manifestZipEntry = zipEntries.find((e) => (e.entryName.split('/').pop() ?? e.entryName) === 'manifest.json');
+    if (manifestZipEntry) {
+      try {
+        const parsed = JSON.parse(manifestZipEntry.getData().toString('utf-8'));
+        if (Array.isArray(parsed)) {
+          manifest = parsed.filter(
+            (r): r is ManifestRow =>
+              !!r && typeof r.filename === 'string' && typeof r.tenderReferenceNo === 'string' && typeof r.companySlug === 'string' && typeof r.docType === 'string',
+          );
+          if (manifest.length !== parsed.length) {
+            warnings.push('manifest.json had rows missing filename/tenderReferenceNo/companySlug/docType - those rows were ignored.');
+          }
+        } else {
+          warnings.push('manifest.json was found but is not a JSON array - ignored, all PDFs will be treated as tender documents.');
+        }
+      } catch (err) {
+        warnings.push(`Could not parse manifest.json: ${err instanceof Error ? err.message : err} - ignored, all PDFs will be treated as tender documents.`);
+      }
+    }
+    const manifestByPath = new Map(manifest.map((m) => [m.filename, m]));
+
     for (const ze of zipEntries) {
       const inner = ze.entryName.split('/').pop() ?? ze.entryName;
-      if (inner.startsWith('.') || inner.startsWith('__MACOSX')) continue; // metadata cruft
+      if (inner.startsWith('.') || inner.startsWith('__MACOSX') || inner === 'manifest.json') continue; // metadata cruft + the manifest itself
       const iext = extOf(inner);
       const data = ze.getData();
+
+      const manifestRow = manifestByPath.get(ze.entryName) ?? manifestByPath.get(inner);
+      if (manifestRow && iext === 'pdf') {
+        entries.push({
+          kind: 'bidderDocument',
+          filename: ze.entryName,
+          tenderReferenceNo: manifestRow.tenderReferenceNo,
+          companySlug: manifestRow.companySlug,
+          docType: manifestRow.docType,
+          mimeType: 'application/pdf',
+          sizeBytes: data.length,
+        });
+        continue;
+      }
+
       if (iext === 'pdf') {
         if (!hasLLM()) warnings.push(`"${inner}": no LLM provider configured - tender extraction returned nothing.`);
         const extraction = hasLLM() ? await extractTenderFromPdf(data) : { ...EMPTY_TENDER_EXTRACTION };

@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
+import AdmZip from 'adm-zip';
 import { prisma } from '@/lib/db';
 import { logAudit } from '@/lib/auditLog';
-import type { CommitResult, ImportMode, ImportReview, RecordsEntry, TenderEntry } from './types';
+import { downloadDatasetFile } from '@/lib/supabaseStorage';
+import type { BidderDocumentEntry, CommitResult, ImportMode, ImportReview, RecordsEntry, TenderEntry } from './types';
 
 /**
  * The standard requirement set every GeM seller faces regardless of the
@@ -58,6 +60,10 @@ export function recordEntries(review: ImportReview): RecordsEntry[] {
   return review.entries.filter((e): e is RecordsEntry => e.kind === 'records');
 }
 
+export function bidderDocumentEntries(review: ImportReview): BidderDocumentEntry[] {
+  return review.entries.filter((e): e is BidderDocumentEntry => e.kind === 'bidderDocument');
+}
+
 /**
  * Applies a reviewed import to the database. 'replace-all' wipes everything
  * first (seed.ts deletion order). Creates one ImportBatch row referencing the
@@ -67,13 +73,14 @@ export function recordEntries(review: ImportReview): RecordsEntry[] {
 export async function commitImport(review: ImportReview, mode: ImportMode, processedBy: string): Promise<CommitResult> {
   const tenders = committableTenders(review);
   const records = recordEntries(review);
+  const bidderDocs = bidderDocumentEntries(review);
   const notes: string[] = [];
 
   if (mode === 'replace-all' && tenders.length === 0) {
     throw new Error('Replace All needs at least one importable tender in the file — otherwise it would leave the database with no tenders. Use Add instead, or include the tender PDF.');
   }
-  if (tenders.length === 0 && records.every((r) => r.extraction.records.length === 0)) {
-    throw new Error('Nothing to import: no committable tender and no bidder records were found in this file.');
+  if (tenders.length === 0 && records.every((r) => r.extraction.records.length === 0) && bidderDocs.length === 0) {
+    throw new Error('Nothing to import: no committable tender, no bidder records, and no bidder documents were found in this file.');
   }
 
   if (mode === 'replace-all') {
@@ -94,6 +101,7 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
   });
 
   let created = 0;
+  let documentsAttached = 0;
 
   // --- tenders ---
   for (const t of tenders) {
@@ -172,9 +180,58 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
     }
   }
 
+  // --- bidder documents (PDFs inside a manifest-driven ZIP, attached to an
+  // already-existing bidder matched by tenderReferenceNo + companySlug) ---
+  if (bidderDocs.length > 0) {
+    // The review object only ever carries lightweight metadata for these
+    // entries (never the file bytes - that would bloat reviewJson, which
+    // travels through this commit Server Action's body). Re-download the
+    // source ZIP once from Supabase Storage and pull each entry's bytes out
+    // by its in-zip path. This is also what keeps the import working
+    // regardless of how large the ZIP or its individual PDFs are - the
+    // Server Action body only ever carries filenames and doc types, never
+    // the documents themselves.
+    let sourceZip: AdmZip;
+    try {
+      const zipBuffer = await downloadDatasetFile(review.sourcePath);
+      sourceZip = new AdmZip(zipBuffer);
+    } catch (err) {
+      throw new Error(`Could not re-download "${review.sourceFilename}" from Storage to attach its bidder documents: ${err instanceof Error ? err.message : err}`);
+    }
+
+    for (const d of bidderDocs) {
+      const tender = await prisma.tender.findUnique({ where: { referenceNo: d.tenderReferenceNo }, select: { id: true } });
+      if (!tender) {
+        notes.push(`Document "${d.filename}": tender ${d.tenderReferenceNo} not found — skipped.`);
+        continue;
+      }
+      const bidder = await prisma.bidder.findFirst({ where: { tenderId: tender.id, companySlug: d.companySlug }, select: { id: true } });
+      if (!bidder) {
+        notes.push(`Document "${d.filename}": no bidder with company slug "${d.companySlug}" on tender ${d.tenderReferenceNo} — import that bidder's spreadsheet first, then re-review this ZIP.`);
+        continue;
+      }
+      const zipEntry = sourceZip.getEntry(d.filename);
+      if (!zipEntry) {
+        notes.push(`Document "${d.filename}": could not find this file inside the ZIP on re-read — skipped.`);
+        continue;
+      }
+      const fileData = zipEntry.getData();
+      const fileName = d.filename.split('/').pop() ?? d.filename;
+
+      await prisma.$transaction([
+        prisma.document.deleteMany({ where: { bidderId: bidder.id, docType: d.docType } }),
+        prisma.document.create({
+          data: { bidderId: bidder.id, docType: d.docType, fileName, mimeType: d.mimeType, fileData, rawText: null },
+        }),
+      ]);
+      documentsAttached++;
+    }
+  }
+
   const summaryParts: string[] = [];
   const tCount = tenders.length ? Math.min(created, tenders.length) : 0;
   if (created > 0) summaryParts.push(`${created} record(s) created`);
+  if (documentsAttached > 0) summaryParts.push(`${documentsAttached} document(s) attached`);
   if (review.warnings.length) summaryParts.push(`${review.warnings.length} warning(s)`);
   if (notes.length) summaryParts.push(`${notes.length} note(s)`);
   const summary = `${mode === 'replace-all' ? 'Replace All' : 'Add'} from "${review.sourceFilename}": ${summaryParts.join(', ') || 'nothing created'}.${notes.length ? ' ' + notes.join(' ') : ''}`;
@@ -187,7 +244,7 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
   await logAudit({
     actor: `${processedBy} (import)`,
     action: 'DATASET_IMPORTED',
-    details: { importBatchId: batch.id, filename: review.sourceFilename, mode, recordsCreated: created, tenders: tCount },
+    details: { importBatchId: batch.id, filename: review.sourceFilename, mode, recordsCreated: created, documentsAttached, tenders: tCount },
   });
 
   return { importBatchId: updated.id, recordsCreated: created, summary, notes };

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { importSecretOk } from '@/lib/import/adminGate';
 import { listDatasetFiles, downloadDatasetFile, DATASET_BUCKET } from '@/lib/supabaseStorage';
 import { readImportFile } from '@/lib/import/readImportFile';
-import { committableTenders, recordEntries } from '@/lib/import/commit';
+import { committableTenders, recordEntries, bidderDocumentEntries } from '@/lib/import/commit';
 import { REQUIRED_TENDER_FIELDS, type ImportReview, type TenderEntry } from '@/lib/import/types';
 import { ImportReviewForm } from './ImportReviewForm';
 
@@ -110,8 +110,9 @@ async function FileReview({ path, secret }: { path: string; secret: string }) {
 
   const tenders = committableTenders(review);
   const records = recordEntries(review);
+  const bidderDocs = bidderDocumentEntries(review);
   const anyRecords = records.some((r) => r.extraction.records.length > 0);
-  const canCommit = tenders.length > 0 || anyRecords;
+  const canCommit = tenders.length > 0 || anyRecords || bidderDocs.length > 0;
   const canReplaceAll = tenders.length > 0;
 
   return (
@@ -137,6 +138,20 @@ async function FileReview({ path, secret }: { path: string; secret: string }) {
           return (
             <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               <span className="font-medium">{entry.filename}</span> — skipped: {entry.reason}
+            </div>
+          );
+        if (entry.kind === 'bidderDocument')
+          return (
+            <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold">{entry.filename}</span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">bidder document · {entry.docType}</span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">{Math.round(entry.sizeBytes / 1024)} KB</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Will attach to the bidder with company slug &quot;<strong>{entry.companySlug}</strong>&quot; on tender{' '}
+                <strong>{entry.tenderReferenceNo}</strong> — that bidder must already exist (import its spreadsheet first).
+              </p>
             </div>
           );
         // records
