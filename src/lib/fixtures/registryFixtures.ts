@@ -1,3 +1,26 @@
+/* ============================================================================
+ * ⚠️  STALE — HISTORICAL VALUES ONLY. DO NOT RESEED FROM THIS FILE. ⚠️
+ *
+ * As of the registry migration (commit 4f207fe) the live simulated registries
+ * are the RegistryPan / RegistryGst / RegistryUdyam / RegistryBlacklist /
+ * RegistryDpiitLocalContent tables in Supabase Postgres — NOT this file, and
+ * NOT scripts/seedRegistries.ts.
+ *
+ * Those live tables were then MANUALLY CORRECTED directly in Supabase so that
+ * all 37 demo bidders verify cleanly (registered PAN/GST/Udyam rows for every
+ * declared identity, blacklist emptied, DPIIT rows matched to declared local
+ * content). The objects below still hold the ORIGINAL demo-failure values —
+ * unregistered bidders, broken GSTIN checksums, filing delays, blacklist
+ * entries, etc.
+ *
+ * Running `npx tsx scripts/seedRegistries.ts` again would SILENTLY OVERWRITE
+ * the corrected live data back to these stale values. Don't.
+ *
+ * This file is kept only because other code imports the TypeScript *types*
+ * (UdyamRecord / GstRecord / PanRecord / BlacklistRecord /
+ * DpiitLocalContentRecord). It is no longer the source of truth for any data.
+ * ============================================================================ */
+
 /**
  * Simulated government registries.
  *

@@ -1,3 +1,22 @@
+/* ============================================================================
+ * ⚠️  STALE — DO NOT RUN THIS SCRIPT AGAINST THE DEMO DATABASE. ⚠️
+ *
+ * The live simulated registries (RegistryPan / RegistryGst / RegistryUdyam /
+ * RegistryBlacklist / RegistryDpiitLocalContent in Supabase) have since been
+ * MANUALLY CORRECTED directly in Supabase so that all 37 demo bidders verify
+ * cleanly. Its source, src/lib/fixtures/registryFixtures.ts, still holds the
+ * ORIGINAL demo-failure values (unregistered bidders, broken GSTIN checksums,
+ * filing delays, blacklist entries).
+ *
+ * Running this script now would upsert those stale values straight over the
+ * corrected live data — re-breaking Swift's/Rapid's GSTINs, un-registering
+ * NovaTech's and Meridian's identities, re-adding the CVC/ministry blacklist
+ * rows for Swift and Zenith, and reverting the filing-delay flags. Don't.
+ *
+ * Kept only as a record of how the tables were first populated. If you truly
+ * need to rebuild the registries from scratch, correct the fixture file first.
+ * ============================================================================ */
+
 import { PrismaClient } from '@prisma/client';
 import {
   udyamRegistry,
