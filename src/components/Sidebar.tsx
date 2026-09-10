@@ -29,40 +29,41 @@ export function Sidebar({ role }: { role: Role }) {
   const items = NAV.filter((n) => !n.roles || n.roles.includes(role));
 
   return (
-    <aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-      <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-[13px]">
-        <ChakraWheel className="h-7 w-7 shrink-0 text-chakra" />
-        <div className="leading-tight">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-saffron-700">GeM</p>
-          <p className="text-sm font-semibold text-slate-900">Compliance</p>
+    <aside className="hidden w-sidebar shrink-0 flex-col border-r border-line bg-surface-lowest md:flex">
+      <div className="border-b border-line px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <ChakraWheel className="h-8 w-8 shrink-0 text-navy" />
+          <div className="leading-tight">
+            <p className="font-heading text-h2 font-bold leading-none text-navy">GeM</p>
+            <p className="text-label uppercase tracking-wider text-ink-muted">Compliance</p>
+          </div>
         </div>
+        <p className="mt-2 text-data text-ink-faint">Procurement verification terminal</p>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-0.5 p-3">
         {items.map((n) => {
           const active = pathname === n.href || pathname.startsWith(`${n.href}/`);
           return (
             <Link
               key={n.href}
               href={n.href}
-              // border-l on every item (transparent when inactive) so the
+              // border-r on every item (transparent when inactive) so the
               // active saffron accent doesn't shift the layout.
-              className={`flex items-center gap-2.5 rounded-lg border-l-[3px] px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 border-r-[3px] px-4 py-2.5 text-sm transition-colors ${
                 active
-                  ? 'border-saffron bg-chakra/10 text-chakra'
-                  : 'border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'border-saffron bg-surface-low font-semibold text-saffron-800'
+                  : 'border-transparent font-medium text-ink-muted hover:bg-surface-low hover:text-navy'
               }`}
             >
-              <span className={active ? 'text-chakra' : 'text-slate-400'}>{n.icon}</span>
+              <span className={active ? 'text-saffron-800' : 'text-ink-faint'}>{n.icon}</span>
               {n.label}
             </Link>
           );
         })}
       </nav>
 
-      <p className="border-t border-slate-100 p-3 text-[11px] text-slate-400">
-        Team-only tools stay off this nav.
-      </p>
+      <p className="border-t border-line px-4 py-3 text-data text-ink-faint">Team-only tools stay off this nav.</p>
     </aside>
   );
 }
@@ -72,17 +73,15 @@ export function MobileNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const items = NAV.filter((n) => !n.roles || n.roles.includes(role));
   return (
-    <nav className="flex gap-1 border-b border-slate-200 bg-white px-3 py-1.5 md:hidden">
+    <nav className="flex gap-1 border-b border-line bg-surface-lowest px-3 py-1.5 md:hidden">
       {items.map((n) => {
         const active = pathname === n.href || pathname.startsWith(`${n.href}/`);
         return (
           <Link
             key={n.href}
             href={n.href}
-            className={`rounded-md border-l-[3px] px-2.5 py-1 text-xs font-medium ${
-              active
-                ? 'border-saffron bg-chakra/10 text-chakra'
-                : 'border-transparent text-slate-600 hover:bg-slate-100'
+            className={`rounded border-b-2 px-2.5 py-1 text-xs font-medium transition-colors ${
+              active ? 'border-saffron bg-surface-low text-saffron-800' : 'border-transparent text-ink-muted hover:bg-surface-low'
             }`}
           >
             {n.label}
