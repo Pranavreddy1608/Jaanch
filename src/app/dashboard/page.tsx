@@ -44,14 +44,14 @@ export default async function DashboardPage() {
 
   if (tenders.length === 0) {
     return (
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold">{isBidder ? 'No tenders' : 'No tenders loaded'}</h2>
-        <p className="mt-1 text-sm text-slate-600">
+      <div className="card">
+        <h2 className="font-heading text-h2 text-navy">{isBidder ? 'No tenders' : 'No tenders loaded'}</h2>
+        <p className="mt-1 text-sm text-ink-muted">
           {isBidder ? (
             'Your company is not currently registered as a bidder on any tender.'
           ) : (
             <>
-              Run <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">npm run seed</code> to load the demo tenders.
+              Run <code className="rounded bg-surface-container px-1 py-0.5 font-mono text-xs">npm run seed</code> to load the demo tenders.
             </>
           )}
         </p>
@@ -81,8 +81,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">{isBidder ? 'Your tenders' : 'Tenders'}</h2>
-        <p className="text-sm text-slate-500">
+        <h1 className="font-heading text-h1 text-navy">{isBidder ? 'Your tenders' : 'Tenders'}</h1>
+        <p className="mt-1 text-sm text-ink-muted">
           {isBidder ? (
             <>
               The {tenders.length} GeM {tenders.length === 1 ? 'bid' : 'bids'} {companyName} is registered on. Click one to
@@ -131,9 +131,7 @@ export default async function DashboardPage() {
 
       {!isBidder && (
         <div className="card w-full lg:max-w-lg">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Risk distribution — latest verification per bidder
-          </h3>
+          <h3 className="section-title">Risk distribution — latest verification per bidder</h3>
           <RiskDonut low={dist.LOW} medium={dist.MEDIUM} high={dist.HIGH} />
         </div>
       )}

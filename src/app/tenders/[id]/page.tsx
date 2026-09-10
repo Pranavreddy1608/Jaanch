@@ -44,14 +44,12 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
   if (isBidder && tender.bidders.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <Link href="/dashboard" className="text-sm text-slate-500 hover:text-chakra hover:underline">
-            ← Back to dashboard
-          </Link>
-        </div>
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold">Not a registered bidder</h2>
-          <p className="mt-1 text-sm text-slate-600">
+        <Link href="/dashboard" className="text-sm text-ink-muted transition-colors hover:text-navy">
+          ← Back to dashboard
+        </Link>
+        <div className="card">
+          <h2 className="font-heading text-h2 text-navy">Not a registered bidder</h2>
+          <p className="mt-1 text-sm text-ink-muted">
             You are not a registered bidder on {tender.referenceNo} ({tender.title}).
           </p>
         </div>
@@ -59,125 +57,109 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
     );
   }
 
+  const metaRow = (label: string, value: React.ReactNode, span2 = false) => (
+    <div className={span2 ? 'sm:col-span-2' : undefined}>
+      <dt className="text-label uppercase tracking-wide text-ink-faint">{label}</dt>
+      <dd className="mt-0.5 text-ink-muted">{value}</dd>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:text-chakra hover:underline">
-          ← Back to dashboard
-        </Link>
-      </div>
+      <Link href="/dashboard" className="text-sm text-ink-muted transition-colors hover:text-navy">
+        ← Back to dashboard
+      </Link>
 
       <div className="card">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{tender.referenceNo}</p>
-            <h2 className="text-lg font-semibold">{tender.title}</h2>
-            <p className="text-xs text-slate-500">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="mono-chip">{tender.referenceNo}</span>
+            <h1 className="mt-2 font-heading text-h1 text-ink">{tender.title}</h1>
+            <p className="mt-1 text-sm text-ink-muted">
               {tender.organization} · {tender.department}
             </p>
           </div>
           {tender.bidEndsAt && (
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                bidClosed ? 'bg-slate-200 text-slate-600' : 'bg-green-100 text-green-800'
-              }`}
-            >
+            <span className={`badge ${bidClosed ? 'badge-neutral' : 'badge-success'}`}>
               {bidClosed ? 'Bid closed' : 'Bid open'} · closes{' '}
               {tender.bidEndsAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
             </span>
           )}
         </div>
-        <dl className="mt-3 grid gap-x-6 gap-y-1.5 border-t pt-3 text-xs text-slate-600 sm:grid-cols-2">
-          <div>
-            <dt className="font-medium text-slate-400">Category</dt>
-            <dd>{tender.category}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-slate-400">EMD / ePBG</dt>
-            <dd>{tender.emdNote ?? (tender.emdRequired ? 'Required' : 'Not required for this tender')}</dd>
-          </div>
-          {tender.mseNote && (
-            <div className="sm:col-span-2">
-              <dt className="font-medium text-slate-400">MSE / Startup</dt>
-              <dd>{tender.mseNote}</dd>
-            </div>
-          )}
-          {tender.miiNote && (
-            <div className="sm:col-span-2">
-              <dt className="font-medium text-slate-400">Make in India</dt>
-              <dd>{tender.miiNote}</dd>
-            </div>
-          )}
+        <dl className="mt-4 grid gap-x-8 gap-y-3 border-t border-line pt-4 text-xs sm:grid-cols-2">
+          {metaRow('Category', tender.category)}
+          {metaRow('EMD / ePBG', tender.emdNote ?? (tender.emdRequired ? 'Required' : 'Not required for this tender'))}
+          {tender.mseNote && metaRow('MSE / Startup', tender.mseNote, true)}
+          {tender.miiNote && metaRow('Make in India', tender.miiNote, true)}
         </dl>
         {tender.importBatch ? (
-          <p className="mt-2 text-[11px] text-slate-500">
-            Imported from <span className="font-medium">{tender.importBatch.filename}</span> on{' '}
+          <p className="mt-3 text-[11px] text-ink-faint">
+            Imported from <span className="font-medium text-ink-muted">{tender.importBatch.filename}</span> on{' '}
             {new Date(tender.importBatch.processedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
             {' · '}
-            <a
-              href={`/api/import-batches/${tender.importBatch.id}/download`}
-              className="text-chakra hover:underline"
-            >
+            <a href={`/api/import-batches/${tender.importBatch.id}/download`} className="text-navy hover:underline">
               download source file
             </a>
           </p>
         ) : (
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className="mt-3 text-[11px] text-ink-faint">
             Real, independently verifiable GeM bid ({tender.referenceNo}).{' '}
             {isBidder ? 'The row below is your bid.' : 'Bidders below are synthetic.'}
           </p>
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-3">{isBidder ? 'Your bid' : 'Bidder'}</th>
-              <th className="px-4 py-3">Compliance Score</th>
-              <th className="px-4 py-3">Risk Level</th>
-              <th className="px-4 py-3">PO Decision</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {tender.bidders.map((bidder) => {
-              const latestScore = bidder.scores[0];
-              const latestDecision = bidder.decisions[0];
-              return (
-                <tr key={bidder.id} className="border-t">
-                  <td className="px-4 py-3">
-                    <Link href={`/bidders/${bidder.id}`} className="font-medium text-slate-900 hover:text-chakra hover:underline">
-                      {bidder.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <ScoreBadge score={latestScore?.complianceScore ?? null} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <RiskBadge level={latestScore?.riskLevel ?? null} />
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{latestDecision ? latestDecision.outcome : 'Pending'}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {!isBidder && (
-                        <VerifyButton
-                          bidderId={bidder.id}
-                          label={latestScore ? 'Re-verify' : 'Run Verification'}
-                          disabledReason={canVerify ? undefined : viewerNote}
-                          compact
-                        />
-                      )}
-                      <Link href={`/bidders/${bidder.id}`} className="text-sm font-medium text-slate-600 hover:text-chakra hover:underline">
-                        Details →
+      <div className="card overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="border-b border-line bg-surface text-label uppercase tracking-wide text-ink-muted">
+              <tr>
+                <th className="px-4 py-3">{isBidder ? 'Your bid' : 'Bidder'}</th>
+                <th className="px-4 py-3">Compliance score</th>
+                <th className="px-4 py-3">Risk level</th>
+                <th className="px-4 py-3">PO decision</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {tender.bidders.map((bidder) => {
+                const latestScore = bidder.scores[0];
+                const latestDecision = bidder.decisions[0];
+                return (
+                  <tr key={bidder.id} className="border-t border-line">
+                    <td className="px-4 py-3">
+                      <Link href={`/bidders/${bidder.id}`} className="font-medium text-ink hover:text-navy hover:underline">
+                        {bidder.name}
                       </Link>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="px-4 py-3">
+                      <ScoreBadge score={latestScore?.complianceScore ?? null} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <RiskBadge level={latestScore?.riskLevel ?? null} />
+                    </td>
+                    <td className="px-4 py-3 text-ink-muted">{latestDecision ? latestDecision.outcome : 'Pending'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {!isBidder && (
+                          <VerifyButton
+                            bidderId={bidder.id}
+                            label={latestScore ? 'Re-verify' : 'Run Verification'}
+                            disabledReason={canVerify ? undefined : viewerNote}
+                            compact
+                          />
+                        )}
+                        <Link href={`/bidders/${bidder.id}`} className="text-sm font-medium text-navy hover:underline">
+                          Details →
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
