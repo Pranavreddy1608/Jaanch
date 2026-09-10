@@ -224,6 +224,16 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
                   <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
                     {doc.mimeType ? `uploaded file · ${doc.mimeType}` : 'simulated OCR text'}
                   </span>
+                  {doc.mimeType && (
+                    <a
+                      href={`/api/documents/${doc.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded bg-chakra/10 px-1.5 py-0.5 text-[11px] font-medium text-chakra hover:bg-chakra/20"
+                    >
+                      Preview
+                    </a>
+                  )}
                 </div>
                 {doc.rawText && <p className="mt-2 text-xs text-slate-500">{doc.rawText}</p>}
                 {doc.extractedData && (

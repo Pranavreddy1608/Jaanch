@@ -236,68 +236,9 @@ const TENDERS: SeedTender[] = [
       },
       { code: 'DOCUMENT_VERIFICATION', label: 'DigiLocker Document Verification', sourceType: 'digilocker', mandatory: false, ruleConfig: JSON.stringify({}) },
     ],
-    bidders: [
-      {
-        key: 'chennai-precision-engineering',
-        companySlug: 'chennai-precision-engineering',
-        name: 'Chennai Precision Engineering Pvt Ltd',
-        udyamNumber: 'UDYAM-TN-03-0012345',
-        gstin: '33AAACC1206D1ZN',
-        pan: 'AAACC1206D',
-        claimedTurnoverInrLakh: 480,
-        claimedEmployeeCount: 62,
-        // No Local Content Certificate: this tender's MII / Local Content
-        // requirement is notApplicable (CA-waived global tender), so a
-        // local-content document has nothing to be evaluated against here.
-        // The multimodal-extraction demo lives on tenders 3/5/6/10 (where MII
-        // is active) and on the live OEM-authorization upload on this page.
-        certificateText: null,
-      },
-      {
-        key: 'coastal-traders',
-        companySlug: 'coastal-traders',
-        name: 'Coastal Traders & Co',
-        udyamNumber: null,
-        gstin: '33AACFC5678K1Z8',
-        pan: 'AACFC5678K',
-        claimedTurnoverInrLakh: 210,
-        claimedEmployeeCount: 18,
-        certificateText: null, // see chennai-precision-engineering: Local Content is notApplicable on this tender
-      },
-      {
-        key: 'bharath-msme-fabricators',
-        companySlug: 'bharath-msme-fabricators',
-        name: 'Bharath MSME Febricators',
-        udyamNumber: 'UDYAM-TN-06-0098765',
-        gstin: '29AAGFB0987R1ZM',
-        pan: 'AAGFB0987R',
-        claimedTurnoverInrLakh: 95,
-        claimedEmployeeCount: 12,
-        certificateText: null, // see chennai-precision-engineering: Local Content is notApplicable on this tender
-      },
-      {
-        key: 'swift-supplies-enterprises',
-        companySlug: 'swift-supplies-enterprises',
-        name: 'Swift Supplies Enterprises',
-        udyamNumber: null,
-        gstin: '27AABCS4321L1ZA',
-        pan: 'AABCS4321L',
-        claimedTurnoverInrLakh: 340,
-        claimedEmployeeCount: 40,
-        certificateText: null, // see chennai-precision-engineering: Local Content is notApplicable on this tender
-      },
-      {
-        key: 'novatech-industrial-solutions',
-        companySlug: 'novatech-industrial-solutions',
-        name: 'NovaTech Industrial Solutions',
-        udyamNumber: 'UDYAM-TN-09-0055555',
-        gstin: null,
-        pan: 'AADCN65O3P',
-        claimedTurnoverInrLakh: 610,
-        claimedEmployeeCount: 88,
-        certificateText: null,
-      },
-    ],
+    // Bidders are populated live via /admin/import + the Documents upload UI,
+    // not seeded. Re-seeding leaves 10 correctly-configured tenders, no bidders.
+    bidders: [],
   },
 
   // ============ TENDER 2 ============
@@ -326,12 +267,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('bluewave-defence', 't2', { turnover: 640, employees: 120 }),
-      poolBidder('orbit-traders', 't2', { turnover: 180, employees: 22 }),
-      poolBidder('meridian-instruments', 't2', { turnover: 300, employees: 35 }),
-      poolBidder('rapid-procure', 't2', { turnover: 260, employees: 40 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 3 ============
@@ -358,16 +294,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('coromandel-diagnostics', 't3', {
-        turnover: 190,
-        employees: 24,
-        cert: 'Local Content Certificate: the offered 3D intraoral scanner assemblies contain 65% local content per the Public Procurement (Make in India) Order 2017, certified by Rao & Narayan, DPIIT-registered cost accountants.',
-      }),
-      poolBidder('apex-medtech', 't3', { turnover: 720, employees: 140 }),
-      poolBidder('crest-labtech', 't3', { turnover: 240, employees: 30 }),
-      poolBidder('polaris-medequip', 't3', { turnover: 155, employees: 18 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 4 ============
@@ -397,11 +324,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('bluewave-defence', 't4', { turnover: 640, employees: 120 }),
-      poolBidder('zenith-supplies', 't4', { turnover: 410, employees: 55 }),
-      poolBidder('orbit-traders', 't4', { turnover: 180, employees: 22 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 5 ============
@@ -429,16 +352,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('nucleus-scientific', 't5', {
-        turnover: 380,
-        employees: 46,
-        cert: 'Local Content Certificate: the GC-MS system offered contains 72% local content per the Public Procurement (Make in India) Order 2017, certified by Rao & Narayan, DPIIT-registered cost accountants.',
-      }),
-      poolBidder('sentinel-imaging', 't5', { turnover: 560, employees: 90 }),
-      poolBidder('meridian-instruments', 't5', { turnover: 300, employees: 35 }),
-      poolBidder('delta-scientific', 't5', { turnover: 275, employees: 33 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 6 ============
@@ -466,15 +380,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('apex-medtech', 't6', {
-        turnover: 720,
-        employees: 140,
-        cert: 'Local Content Certificate: the ICU ventilator units offered contain 58% local content per the Public Procurement (Make in India) Order 2017, certified by Iyer & Associates, DPIIT-registered chartered accountants.',
-      }),
-      poolBidder('crest-labtech', 't6', { turnover: 240, employees: 30 }),
-      poolBidder('polaris-medequip', 't6', { turnover: 155, employees: 18 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 7 ============
@@ -503,11 +409,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('bluewave-defence', 't7', { turnover: 640, employees: 120 }),
-      poolBidder('meridian-instruments', 't7', { turnover: 300, employees: 35 }),
-      poolBidder('zenith-supplies', 't7', { turnover: 410, employees: 55 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 8 ============
@@ -535,12 +437,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('sentinel-imaging', 't8', { turnover: 560, employees: 90 }),
-      poolBidder('rapid-procure', 't8', { turnover: 260, employees: 40 }),
-      poolBidder('orbit-traders', 't8', { turnover: 180, employees: 22 }),
-      poolBidder('coromandel-diagnostics', 't8', { turnover: 190, employees: 24 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 9 ============
@@ -568,11 +465,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('sentinel-imaging', 't9', { turnover: 560, employees: 90 }),
-      poolBidder('himalaya-precision', 't9', { turnover: 300, employees: 38 }),
-      poolBidder('meridian-instruments', 't9', { turnover: 300, employees: 35 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 
   // ============ TENDER 10 ============
@@ -601,16 +494,7 @@ const TENDERS: SeedTender[] = [
       epfoReq,
       digilockerReq,
     ],
-    bidders: [
-      poolBidder('coromandel-diagnostics', 't10', {
-        turnover: 190,
-        employees: 24,
-        cert: 'Local Content Certificate: the ultrasonic surgical aspirator units offered contain 68% local content per the Public Procurement (Make in India) Order 2017, certified by Rao & Narayan, DPIIT-registered cost accountants.',
-      }),
-      poolBidder('apex-medtech', 't10', { turnover: 720, employees: 140 }),
-      poolBidder('crest-labtech', 't10', { turnover: 240, employees: 30 }),
-      poolBidder('orbit-traders', 't10', { turnover: 180, employees: 22 }),
-    ],
+    bidders: [], // populated live via /admin/import + Documents upload, not seeded
   },
 ];
 
