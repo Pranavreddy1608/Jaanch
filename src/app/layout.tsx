@@ -27,27 +27,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {session && <Sidebar role={session.role} />}
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2.5 md:px-6">
+            <header className="flex items-center justify-between gap-3 border-b border-saffron-800 bg-saffron-700 px-4 py-2.5 md:px-6">
               {/* Brand: shown in the bar only where the sidebar isn't (mobile, or no session). */}
               <div className={`flex items-center gap-2 ${session ? 'md:hidden' : ''}`}>
                 <ChakraWheel className="h-6 w-6 shrink-0 text-chakra" />
-                <span className="text-sm font-semibold text-slate-900">GeM Bid Compliance</span>
+                <span className="text-sm font-semibold text-white">GeM Bid Compliance</span>
               </div>
               {session && (
-                <p className="hidden text-xs font-medium uppercase tracking-wide text-saffron-700 md:block">
+                <p className="hidden text-xs font-medium uppercase tracking-wide text-white/90 md:block">
                   Government e-Marketplace · {session.role === 'bidder' ? 'Bidder Portal' : 'Procurement Officer Console'}
                 </p>
               )}
 
               {session && (
                 <div className="flex items-center gap-2.5 text-xs">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-600" aria-hidden="true" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2 py-0.5 font-medium text-white">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-400" aria-hidden="true" />
                     <span className="hidden sm:inline">Session active</span>
                   </span>
-                  <div className="text-right text-slate-500">
+                  <div className="text-right text-white/75">
                     <div>
-                      <span className="font-medium text-slate-700">{session.name}</span> · {ROLE_LABELS[session.role]}
+                      <span className="font-medium text-white">{session.name}</span> · {ROLE_LABELS[session.role]}
                     </div>
                     <SignOutButton />
                   </div>
