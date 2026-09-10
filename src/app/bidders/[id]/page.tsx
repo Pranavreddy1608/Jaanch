@@ -7,6 +7,7 @@ import { VerifyButton } from '@/components/VerifyButton';
 import { RequirementRow } from '@/components/RequirementRow';
 import { DecisionForm } from '@/components/DecisionForm';
 import { DocumentUpload } from '@/components/DocumentUpload';
+import { DocumentPreviewButton } from '@/components/DocumentPreviewButton';
 import { StatCard } from '@/components/StatCard';
 import { ShieldCheckIcon, ClipboardIcon } from '@/components/icons';
 import type { RequirementEvaluation } from '@/lib/rulesEngine';
@@ -225,14 +226,7 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
                     {doc.mimeType ? `uploaded file · ${doc.mimeType}` : 'simulated OCR text'}
                   </span>
                   {doc.mimeType && (
-                    <a
-                      href={`/api/documents/${doc.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded bg-chakra/10 px-1.5 py-0.5 text-[11px] font-medium text-chakra hover:bg-chakra/20"
-                    >
-                      Preview
-                    </a>
+                    <DocumentPreviewButton documentId={doc.id} fileName={doc.fileName} mimeType={doc.mimeType} />
                   )}
                 </div>
                 {doc.rawText && <p className="mt-2 text-xs text-slate-500">{doc.rawText}</p>}
