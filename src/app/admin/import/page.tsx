@@ -6,6 +6,7 @@ import { readImportFile } from '@/lib/import/readImportFile';
 import { committableTenders, recordEntries, bidderDocumentEntries } from '@/lib/import/commit';
 import { REQUIRED_TENDER_FIELDS, type ImportReview, type TenderEntry } from '@/lib/import/types';
 import { ImportReviewForm } from './ImportReviewForm';
+import { AutoImportPanel } from '@/components/AutoImportPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -253,9 +254,12 @@ export default async function AdminImportPage({
         <h1 className="text-lg font-semibold">Dataset import</h1>
         <p className="text-sm text-slate-500">
           Files a team member dropped into the <code className="rounded bg-slate-100 px-1 text-xs">{DATASET_BUCKET}</code>{' '}
-          Supabase Storage bucket. The app only reads this bucket — uploads happen through the Supabase dashboard.
+          Supabase Storage bucket. Drop a file in via the dashboard and it&apos;s auto-imported (add mode) within seconds —
+          or use the manual review-and-commit flow below.
         </p>
       </div>
+
+      <AutoImportPanel secret={secret} />
 
       {listError && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
