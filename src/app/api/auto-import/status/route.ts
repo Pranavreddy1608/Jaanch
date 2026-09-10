@@ -28,6 +28,5 @@ export async function GET(req: NextRequest) {
     pollIntervalMs: autoImportState.pollIntervalMs,
     scanning: autoImportState.scanning,
     log: autoImportState.log,
-    pendingDeletions: autoImportState.pendingDeletions,
   });
 }

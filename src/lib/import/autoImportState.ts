@@ -13,25 +13,14 @@ export type RealtimeStatus = 'connecting' | 'connected' | 'disconnected' | 'erro
 export interface AutoImportLogEntry {
   at: string; // ISO
   filename: string;
-  outcome: 'imported' | 'ignored' | 'skipped' | 'error';
+  // 'auto-deleted' = the source file for a spreadsheet import vanished from
+  // the bucket, so its bidders + everything attached were removed automatically.
+  outcome: 'imported' | 'ignored' | 'skipped' | 'error' | 'auto-deleted';
   detail: string;
   recordsCreated?: number;
   documentsAttached?: number;
   importBatchId?: string;
   via: 'realtime' | 'poll' | 'manual';
-}
-
-/**
- * A source file that created bidders via import and has since disappeared
- * from the bucket. The watcher only records it here - it never deletes
- * anything without an explicit confirm from AutoImportPanel.
- */
-export interface PendingDeletion {
-  importBatchId: string;
-  storagePath: string;
-  filename: string;
-  processedAt: string; // ISO - when the import ran
-  detectedAt: string; // ISO - when the file went missing
 }
 
 interface AutoImportState {
@@ -44,7 +33,6 @@ interface AutoImportState {
   scanning: boolean;
   processedPaths: string[]; // storagePaths this process has already acted on
   log: AutoImportLogEntry[]; // newest first, capped
-  pendingDeletions: PendingDeletion[]; // source files removed from Storage, awaiting a confirm
 }
 
 const MAX_LOG = 40;
@@ -64,7 +52,6 @@ export const autoImportState: AutoImportState =
     scanning: false,
     processedPaths: [],
     log: [],
-    pendingDeletions: [],
   });
 
 export function pushLog(entry: AutoImportLogEntry) {
