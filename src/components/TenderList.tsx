@@ -52,7 +52,7 @@ export function TenderList({ tenders, isBidder }: { tenders: TenderRow[]; isBidd
             <Link
               key={t.id}
               href={`/tenders/${t.id}`}
-              className="grid w-full gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1.8fr)_minmax(0,1.1fr)_auto] sm:items-start"
+              className="grid w-full gap-4 rounded-xl border border-chakra/40 bg-white p-4 shadow-sm transition-[box-shadow,border-color] hover:border-chakra/60 hover:shadow-md sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1.8fr)_minmax(0,1.1fr)_auto] sm:items-start"
             >
               <div className="min-w-0">
                 <h3 className="font-semibold text-slate-900 hover:text-chakra">{t.title}</h3>
