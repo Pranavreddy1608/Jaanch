@@ -123,7 +123,14 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
           </p>
         ) : (
           <p className="mt-2 text-[11px] text-slate-400">
-            Real, independently verifiable GeM bid ({tender.referenceNo}).{' '}
+            {tender.referenceNo.startsWith('GEM/') ? (
+              <>Real, independently verifiable GeM bid ({tender.referenceNo}).</>
+            ) : (
+              <>
+                Internal QA test fixture ({tender.referenceNo}) — not a real GeM tender, used only to exercise every
+                verification path with deliberately crafted test data.
+              </>
+            )}{' '}
             {isBidder ? 'The row below is your bid.' : 'Bidders below are synthetic.'}
           </p>
         )}

@@ -612,6 +612,32 @@ const TENDERS: SeedTender[] = [
       poolBidder('orbit-traders', 't10', { turnover: 180, employees: 22 }),
     ],
   },
+
+  // ============ TENDER 11 — INTERNAL QA FIXTURE (not a real GeM tender) ============
+  {
+    referenceNo: 'QA-TEST/2026/000001',
+    title: 'AI Verification Test Bed — Synthetic QA Fixture (Not a Real GeM Tender)',
+    organization: 'Internal QA — SIH26100 Demo Team',
+    department: 'N/A — synthetic fixture for exercising every verification path',
+    category: 'Internal Test Fixture',
+    documentDated: new Date('2026-09-10T00:00:00+05:30'),
+    bidEndsAt: new Date('2027-09-10T17:00:00+05:30'),
+    emdRequired: false,
+    emdNote: 'N/A — internal QA fixture, not a real procurement.',
+    miiNote: 'N/A — internal QA fixture. Make in India requirement is configured below purely to exercise that check.',
+    mseNote: 'N/A — internal QA fixture. Udyam/MSE requirement is configured below purely to exercise that check.',
+    requirements: [
+      gstReq,
+      panReq,
+      blacklistReq,
+      oemReq,
+      udyamMse(15, 25),
+      miiApplicable(20, 20, 'N/A — internal QA fixture; configured only to exercise the Make in India check.'),
+      epfoReq,
+      digilockerReq,
+    ],
+    bidders: [], // populated via /admin/import from a test spreadsheet, not seeded directly
+  },
 ];
 
 async function main() {
@@ -668,7 +694,11 @@ async function main() {
     }
   }
 
-  console.log(`Seeded ${TENDERS.length} real GeM tenders with ${bidderCount} synthetic bidders.`);
+  const realCount = TENDERS.filter((t) => t.referenceNo.startsWith('GEM/')).length;
+  const qaCount = TENDERS.length - realCount;
+  console.log(
+    `Seeded ${realCount} real GeM tenders${qaCount ? ` + ${qaCount} internal QA fixture(s)` : ''} with ${bidderCount} synthetic bidders.`,
+  );
 }
 
 main()

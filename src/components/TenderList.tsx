@@ -100,6 +100,11 @@ export function TenderList({ tenders, isBidder }: { tenders: TenderRow[]; isBidd
                 >
                   {t.closed ? 'Closed' : 'Open'}
                 </span>
+                {!t.referenceNo.startsWith('GEM/') && (
+                  <span className="whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                    Test fixture
+                  </span>
+                )}
                 <span className="whitespace-nowrap text-xs text-slate-500">
                   {isBidder
                     ? 'You are registered'
