@@ -6,8 +6,14 @@ import {
   extractLocalContentCertificate,
   extractLocalContentCertificateFromFile,
   extractOemAuthorizationFromFile,
+  extractPanCardFromFile,
+  extractGstCertificateFromFile,
+  extractUdyamCertificateFromFile,
   type LocalContentExtraction,
   type OemAuthorizationExtraction,
+  type PanCardExtraction,
+  type GstCertificateExtraction,
+  type UdyamCertificateExtraction,
 } from './ai/documentExtraction';
 import { generateRecommendation } from './ai/recommendation';
 import { logAudit } from './auditLog';
@@ -32,7 +38,13 @@ export async function runVerificationForBidder(bidderId: string) {
     if (doc.extractedData) continue;
 
     const asFile = doc.fileData && doc.mimeType ? Buffer.from(doc.fileData).toString('base64') : null;
-    let extracted: LocalContentExtraction | OemAuthorizationExtraction | null = null;
+    let extracted:
+      | LocalContentExtraction
+      | OemAuthorizationExtraction
+      | PanCardExtraction
+      | GstCertificateExtraction
+      | UdyamCertificateExtraction
+      | null = null;
     let extractionSource: 'uploaded-file' | 'ocr-text' | null = null;
 
     if (doc.docType === 'LOCAL_CONTENT_CERTIFICATE') {
@@ -48,6 +60,21 @@ export async function runVerificationForBidder(bidderId: string) {
     } else if (doc.docType === 'OEM_AUTHORIZATION_CERTIFICATE') {
       if (asFile) {
         extracted = await extractOemAuthorizationFromFile(asFile, doc.mimeType!);
+        extractionSource = 'uploaded-file';
+      }
+    } else if (doc.docType === 'PAN_CARD') {
+      if (asFile) {
+        extracted = await extractPanCardFromFile(asFile, doc.mimeType!);
+        extractionSource = 'uploaded-file';
+      }
+    } else if (doc.docType === 'GST_CERTIFICATE') {
+      if (asFile) {
+        extracted = await extractGstCertificateFromFile(asFile, doc.mimeType!);
+        extractionSource = 'uploaded-file';
+      }
+    } else if (doc.docType === 'UDYAM_CERTIFICATE') {
+      if (asFile) {
+        extracted = await extractUdyamCertificateFromFile(asFile, doc.mimeType!);
         extractionSource = 'uploaded-file';
       }
     }

@@ -157,6 +157,178 @@ export async function extractOemAuthorizationFromFile(
   }
 }
 
+// --- PAN card -------------------------------------------------------------
+
+export interface PanCardExtraction {
+  /** null = the LLM could not be consulted (no provider / call failed). */
+  looksLikePanCard: boolean | null;
+  panNumber: string | null;
+  holderName: string | null;
+}
+
+const PAN_CARD_INSTRUCTION =
+  'You are checking a PAN (Permanent Account Number) card submitted with a government procurement bid. ' +
+  'Respond with ONLY a JSON object of the shape ' +
+  '{"looksLikePanCard": boolean, "panNumber": string|null, "holderName": string|null}, no other text.\n' +
+  '- looksLikePanCard: true ONLY if this document is plausibly an Indian Income Tax Dept PAN card. ' +
+  'false for anything else (other ID cards, invoices, unrelated or blank documents).\n' +
+  '- panNumber: the 10-character PAN printed on the card (e.g. "AAACC1206D"), exactly as printed, or null if not clearly legible.\n' +
+  '- holderName: the name printed on the card, or null.';
+
+function parsePanCardExtraction(text: string): PanCardExtraction {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  return {
+    looksLikePanCard: typeof parsed.looksLikePanCard === 'boolean' ? parsed.looksLikePanCard : null,
+    panNumber: str(parsed.panNumber),
+    holderName: str(parsed.holderName),
+  };
+}
+
+/**
+ * Reads an uploaded PAN card (PDF/image) via the multimodal LLM. ADDITIVE on
+ * top of pan.ts's existing structural + registry check on the bidder's typed
+ * PAN field - a bidder with no PAN card uploaded is completely unaffected;
+ * one who uploads a card gets it cross-checked against the declared PAN
+ * number. Returns `looksLikePanCard: null` when no LLM provider is
+ * configured or the call fails - the provider then skips the cross-check
+ * rather than guessing.
+ */
+export async function extractPanCardFromFile(fileBase64: string, mimeType: string): Promise<PanCardExtraction> {
+  const empty: PanCardExtraction = { looksLikePanCard: null, panNumber: null, holderName: null };
+  if (!hasLLM()) return empty;
+
+  try {
+    const text = await llmComplete({
+      prompt: PAN_CARD_INSTRUCTION,
+      file: { base64: fileBase64, mimeType },
+      json: true,
+      maxTokens: 300,
+    });
+    return parsePanCardExtraction(text);
+  } catch (err) {
+    console.warn('[ai] PAN-card extraction failed, returning null verdict:', err instanceof Error ? err.message : err);
+    return empty;
+  }
+}
+
+// --- GST registration certificate ------------------------------------------
+
+export interface GstCertificateExtraction {
+  looksLikeGstCertificate: boolean | null;
+  gstin: string | null;
+  legalName: string | null;
+}
+
+const GST_CERTIFICATE_INSTRUCTION =
+  'You are checking a GST registration certificate (Form GST REG-06) submitted with a government procurement bid. ' +
+  'Respond with ONLY a JSON object of the shape ' +
+  '{"looksLikeGstCertificate": boolean, "gstin": string|null, "legalName": string|null}, no other text.\n' +
+  '- looksLikeGstCertificate: true ONLY if this document is plausibly a GST registration certificate. ' +
+  'false for anything else (invoices, other ID documents, unrelated or blank documents).\n' +
+  '- gstin: the 15-character GSTIN printed on the certificate, exactly as printed, or null if not clearly legible.\n' +
+  '- legalName: the registered legal name printed on the certificate, or null.';
+
+function parseGstCertificateExtraction(text: string): GstCertificateExtraction {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  return {
+    looksLikeGstCertificate: typeof parsed.looksLikeGstCertificate === 'boolean' ? parsed.looksLikeGstCertificate : null,
+    gstin: str(parsed.gstin),
+    legalName: str(parsed.legalName),
+  };
+}
+
+/**
+ * Reads an uploaded GST registration certificate (PDF/image) via the
+ * multimodal LLM. ADDITIVE on top of gst.ts's existing checksum + registry
+ * check on the bidder's typed GSTIN - unaffected if no certificate is
+ * uploaded; cross-checked against the declared GSTIN if one is.
+ */
+export async function extractGstCertificateFromFile(fileBase64: string, mimeType: string): Promise<GstCertificateExtraction> {
+  const empty: GstCertificateExtraction = { looksLikeGstCertificate: null, gstin: null, legalName: null };
+  if (!hasLLM()) return empty;
+
+  try {
+    const text = await llmComplete({
+      prompt: GST_CERTIFICATE_INSTRUCTION,
+      file: { base64: fileBase64, mimeType },
+      json: true,
+      maxTokens: 300,
+    });
+    return parseGstCertificateExtraction(text);
+  } catch (err) {
+    console.warn('[ai] GST-certificate extraction failed, returning null verdict:', err instanceof Error ? err.message : err);
+    return empty;
+  }
+}
+
+// --- Udyam / MSME registration certificate ----------------------------------
+
+export interface UdyamCertificateExtraction {
+  looksLikeUdyamCertificate: boolean | null;
+  udyamNumber: string | null;
+  enterpriseName: string | null;
+}
+
+const UDYAM_CERTIFICATE_INSTRUCTION =
+  'You are checking a Udyam Registration Certificate (MSME registration) submitted with a government procurement bid. ' +
+  'Respond with ONLY a JSON object of the shape ' +
+  '{"looksLikeUdyamCertificate": boolean, "udyamNumber": string|null, "enterpriseName": string|null}, no other text.\n' +
+  '- looksLikeUdyamCertificate: true ONLY if this document is plausibly a Udyam Registration Certificate. ' +
+  'false for anything else (invoices, other ID documents, unrelated or blank documents).\n' +
+  '- udyamNumber: the Udyam Registration Number printed on the certificate (e.g. "UDYAM-TN-03-0012345"), exactly as printed, or null if not clearly legible.\n' +
+  '- enterpriseName: the enterprise name printed on the certificate, or null.';
+
+function parseUdyamCertificateExtraction(text: string): UdyamCertificateExtraction {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  return {
+    looksLikeUdyamCertificate: typeof parsed.looksLikeUdyamCertificate === 'boolean' ? parsed.looksLikeUdyamCertificate : null,
+    udyamNumber: str(parsed.udyamNumber),
+    enterpriseName: str(parsed.enterpriseName),
+  };
+}
+
+/**
+ * Reads an uploaded Udyam Registration Certificate (PDF/image) via the
+ * multimodal LLM. ADDITIVE on top of udyam.ts's existing registry lookup on
+ * the bidder's typed Udyam number - unaffected if no certificate is
+ * uploaded; cross-checked against the declared Udyam number if one is.
+ */
+export async function extractUdyamCertificateFromFile(fileBase64: string, mimeType: string): Promise<UdyamCertificateExtraction> {
+  const empty: UdyamCertificateExtraction = { looksLikeUdyamCertificate: null, udyamNumber: null, enterpriseName: null };
+  if (!hasLLM()) return empty;
+
+  try {
+    const text = await llmComplete({
+      prompt: UDYAM_CERTIFICATE_INSTRUCTION,
+      file: { base64: fileBase64, mimeType },
+      json: true,
+      maxTokens: 300,
+    });
+    return parseUdyamCertificateExtraction(text);
+  } catch (err) {
+    console.warn('[ai] Udyam-certificate extraction failed, returning null verdict:', err instanceof Error ? err.message : err);
+    return empty;
+  }
+}
+
 // --- Dataset import: tender PDF -----------------------------------------
 // Used by the backstage /admin/import tool. HARD RULE: a field that is not
 // clearly and explicitly stated in the source document is returned as null.

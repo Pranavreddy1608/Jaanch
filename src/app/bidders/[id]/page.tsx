@@ -171,7 +171,13 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
                     ? documentsByType.get('OEM_AUTHORIZATION_CERTIFICATE')
                     : e.code === 'MAKE_IN_INDIA_LOCAL_CONTENT'
                       ? documentsByType.get('LOCAL_CONTENT_CERTIFICATE')
-                      : undefined;
+                      : e.code === 'GST_FILING'
+                        ? documentsByType.get('GST_CERTIFICATE')
+                        : e.code === 'PAN_IT_COMPLIANCE'
+                          ? documentsByType.get('PAN_CARD')
+                          : e.code === 'UDYAM_STATUS'
+                            ? documentsByType.get('UDYAM_CERTIFICATE')
+                            : undefined;
                 return (
                   <RequirementRow
                     key={e.code}
@@ -216,6 +222,35 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
                 : viewerNote
             }
           />
+          <DocumentUpload
+            bidderId={bidder.id}
+            docType="PAN_CARD"
+            label="PAN Card"
+            disabled={!canUpload}
+            disabledTitle="Upload PAN Card"
+            disabledNote={viewerNote}
+          />
+          <DocumentUpload
+            bidderId={bidder.id}
+            docType="GST_CERTIFICATE"
+            label="GST Registration Certificate"
+            disabled={!canUpload}
+            disabledTitle="Upload GST Registration Certificate"
+            disabledNote={viewerNote}
+          />
+          <DocumentUpload
+            bidderId={bidder.id}
+            docType="UDYAM_CERTIFICATE"
+            label="Udyam Registration Certificate"
+            disabled={!canUpload}
+            disabledTitle="Upload Udyam Registration Certificate"
+            disabledNote={viewerNote}
+          />
+          <p className="text-xs text-slate-400">
+            PAN Card / GST Certificate / Udyam Certificate are optional — GST, PAN and Udyam already verify against the
+            declared field either way. Uploading one adds a real document-read cross-check on top (catches a wrong or
+            mismatched file); it never removes or replaces the existing check.
+          </p>
         </div>
         {bidder.documents.length === 0 ? (
           <p className="text-sm text-slate-500">No documents on file yet.</p>
