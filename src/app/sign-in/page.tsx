@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
-import { prisma } from '@/lib/db';
 import { newCaptcha } from '@/lib/captcha';
 import { SignInForm } from '@/components/SignInForm';
 
@@ -8,13 +7,6 @@ export const dynamic = 'force-dynamic';
 
 export default async function SignInPage() {
   if (getSession()) redirect('/dashboard');
-
-  // Distinct companies from the imported/seeded data, for the Bidder picker.
-  const rows = await prisma.bidder.findMany({
-    distinct: ['companySlug'],
-    select: { companySlug: true, name: true },
-    orderBy: { name: 'asc' },
-  });
 
   // A fresh challenge every render (page is force-dynamic); the form's
   // "new image" button triggers a router.refresh() to get another.
@@ -27,7 +19,7 @@ export default async function SignInPage() {
         <p className="mb-4 mt-1 text-sm text-slate-600">
           GeM Bid Compliance Verification Portal — restricted access.
         </p>
-        <SignInForm companies={rows} captchaSvg={svg} captchaToken={token} />
+        <SignInForm captchaSvg={svg} captchaToken={token} />
       </div>
     </div>
   );
