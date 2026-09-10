@@ -11,7 +11,7 @@ import type { VerificationProvider, VerificationResultPayload } from '../types';
  */
 export const makeInIndiaProvider: VerificationProvider = {
   key: 'makeInIndia',
-  async verify({ bidder, documents, requirement }): Promise<VerificationResultPayload> {
+  async verify({ bidder, documents, requirement, tenderReferenceNo }): Promise<VerificationResultPayload> {
     const cert = documents.find((d) => d.docType === 'LOCAL_CONTENT_CERTIFICATE');
     const declaredPercent = cert?.extractedData?.localContentPercent as number | undefined;
 
@@ -19,7 +19,14 @@ export const makeInIndiaProvider: VerificationProvider = {
       return { status: 'MISSING', confidence: 1, isMock: true, raw: { note: 'No local content certificate uploaded / could not be extracted.' } };
     }
 
-    const dpiitRecord = dpiitLocalContentRegistry[bidder.key];
+    // Bidder.key carries a random suffix for a bidder created through
+    // /admin/import (src/lib/import/commit.ts), so it can't be relied on to
+    // find this bidder's DPIIT record. companySlug + the tender's
+    // referenceNo are both stable no matter how the bidder was created, so
+    // that compound key is tried first; bidder.key is kept as a fallback so
+    // nothing regresses for data seeded before this fix.
+    const dpiitRecord =
+      dpiitLocalContentRegistry[`${bidder.companySlug}@${tenderReferenceNo}`] ?? dpiitLocalContentRegistry[bidder.key];
     if (!dpiitRecord) {
       return {
         status: 'VERIFIED_FAIL',

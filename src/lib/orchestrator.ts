@@ -84,6 +84,7 @@ export async function runVerificationForBidder(bidderId: string) {
         bidder: {
           id: bidder.id,
           key: bidder.key,
+          companySlug: bidder.companySlug,
           name: bidder.name,
           udyamNumber: bidder.udyamNumber,
           gstin: bidder.gstin,
@@ -99,6 +100,7 @@ export async function runVerificationForBidder(bidderId: string) {
           ruleConfig: JSON.parse(requirement.ruleConfig),
         },
         documents: documentsForProviders,
+        tenderReferenceNo: bidder.tender.referenceNo,
       });
       status = result.status;
       raw = result.raw;

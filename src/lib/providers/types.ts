@@ -12,6 +12,7 @@ export type VerificationStatus = 'VERIFIED_OK' | 'VERIFIED_FAIL' | 'INCONSISTENT
 export interface BidderInput {
   id: string;
   key: string;
+  companySlug: string;
   name: string;
   udyamNumber?: string | null;
   gstin?: string | null;
@@ -35,6 +36,16 @@ export interface VerificationInput {
     ruleConfig: Record<string, unknown>;
   };
   documents: DocumentInput[];
+  /**
+   * The tender's referenceNo. The only bidder-identity field that's both
+   * stable and always correct no matter how the bidder was created -
+   * Bidder.key carries a random suffix for anything created through
+   * /admin/import (src/lib/import/commit.ts), so a provider that needs to
+   * address "this bidder, on this tender" reliably (e.g. the DPIIT
+   * cross-check in makeInIndia.ts) should key off companySlug + this, not
+   * bidder.key.
+   */
+  tenderReferenceNo: string;
 }
 
 /**

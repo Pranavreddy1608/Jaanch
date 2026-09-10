@@ -117,9 +117,11 @@ export const blacklistRegistry: BlacklistRecord[] = [
   },
 ];
 
-// Keyed by Bidder.key, since there's no single natural government ID for
-// a Make-in-India local-content declaration - this stands in for the
-// DPIIT/Make in India portal's cross-check of the bidder's declared %.
+// Keyed by Bidder.key for the originally-seeded rows, and ALSO by the
+// compound key `${companySlug}@${tender.referenceNo}` - see the note below.
+// There's no single natural government ID for a Make-in-India local-content
+// declaration, so this stands in for the DPIIT/Make in India portal's
+// cross-check of the bidder's declared %.
 export const dpiitLocalContentRegistry: Record<string, DpiitLocalContentRecord> = {
   'chennai-precision-engineering': { verifiedLocalContentPercent: 62, certifyingAgency: 'DPIIT Registered CA - S. Ramanathan & Co' },
   'coastal-traders': { verifiedLocalContentPercent: 38, certifyingAgency: 'DPIIT Registered CA - Iyer & Associates' },
@@ -132,6 +134,23 @@ export const dpiitLocalContentRegistry: Record<string, DpiitLocalContentRecord> 
   'nucleus-scientific-t5': { verifiedLocalContentPercent: 70, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
   'apex-medtech-t6': { verifiedLocalContentPercent: 55, certifyingAgency: 'DPIIT Registered CA - Iyer & Associates' },
   'coromandel-diagnostics-t10': { verifiedLocalContentPercent: 66, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
+
+  // Compound keys, `${companySlug}@${tender.referenceNo}` - what a provider
+  // should actually look up with (see makeInIndia.ts). Bidder.key carries a
+  // random suffix for any bidder created through /admin/import
+  // (src/lib/import/commit.ts), so the t-suffixed keys above only ever
+  // match the originally-seeded rows. companySlug and the tender's
+  // referenceNo are both stable no matter how the bidder was created, which
+  // is what makes this same fixture data resolve correctly for an imported
+  // bidder too. Same eight records, just addressable a second way.
+  'chennai-precision-engineering@GEM/2026/B/7983771': { verifiedLocalContentPercent: 62, certifyingAgency: 'DPIIT Registered CA - S. Ramanathan & Co' },
+  'coastal-traders@GEM/2026/B/7983771': { verifiedLocalContentPercent: 38, certifyingAgency: 'DPIIT Registered CA - Iyer & Associates' },
+  'bharath-msme-fabricators@GEM/2026/B/7983771': { verifiedLocalContentPercent: 55, certifyingAgency: 'DPIIT Registered CA - K. Suresh & Co' },
+  'swift-supplies-enterprises@GEM/2026/B/7983771': { verifiedLocalContentPercent: 20, certifyingAgency: 'DPIIT Registered CA - Iyer & Associates' },
+  'coromandel-diagnostics@GEM/2026/B/7801588': { verifiedLocalContentPercent: 63, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
+  'nucleus-scientific@GEM/2026/B/7827388': { verifiedLocalContentPercent: 70, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
+  'apex-medtech@GEM/2026/B/7914955': { verifiedLocalContentPercent: 55, certifyingAgency: 'DPIIT Registered CA - Iyer & Associates' },
+  'coromandel-diagnostics@GEM/2026/B/7922011': { verifiedLocalContentPercent: 66, certifyingAgency: 'DPIIT Registered CA - Rao & Narayan' },
 };
 
 // --- Synthetic-company pool (tenders 2-10). One entry per identifier, from
