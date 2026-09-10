@@ -1,4 +1,5 @@
 import { CheckIcon, DotIcon, DashIcon, FileIcon } from './icons';
+import { DocumentPreviewButton } from './DocumentPreviewButton';
 
 interface Props {
   label: string;
@@ -8,13 +9,16 @@ interface Props {
   /** VerificationResult.method - drives the honesty tag. */
   method?: string;
   /**
-   * File name of the uploaded document this check was run against. Only the
-   * two genuinely document-backed checks (OEM_AUTHORIZATION,
-   * MAKE_IN_INDIA_LOCAL_CONTENT) ever have one - every other requirement is
-   * checked against bidder fields / registries, not a file, so it gets
-   * nothing here. Shown as a label, not a link (no download route yet).
+   * The uploaded document this check was run against. Only the two genuinely
+   * document-backed checks (OEM_AUTHORIZATION, MAKE_IN_INDIA_LOCAL_CONTENT)
+   * ever have one - every other requirement is checked against bidder fields
+   * / registries, not a file, so it gets nothing here. The filename shows as
+   * a label; when the document has real uploaded bytes (mimeType set), a
+   * Preview button opens it in-page.
    */
   evidenceFileName?: string;
+  evidenceDocId?: string;
+  evidenceMimeType?: string | null;
 }
 
 // Colour-to-status mapping unchanged from pass 1 — green/red/amber/gray.
@@ -42,7 +46,16 @@ const methodTag: Record<string, { text: string; className: string }> = {
   simulated: { text: 'SIMULATED', className: 'bg-slate-100 text-slate-500' },
 };
 
-export function RequirementRow({ label, mandatory, outcome, reason, method, evidenceFileName }: Props) {
+export function RequirementRow({
+  label,
+  mandatory,
+  outcome,
+  reason,
+  method,
+  evidenceFileName,
+  evidenceDocId,
+  evidenceMimeType,
+}: Props) {
   // No method tag when the tender itself waived the requirement - nothing
   // was verified, so "SIMULATED" / "REAL" would be misleading.
   const tag = outcome !== 'NOT_APPLICABLE' && method ? methodTag[method] ?? methodTag.simulated : undefined;
@@ -69,6 +82,11 @@ export function RequirementRow({ label, mandatory, outcome, reason, method, evid
           <span className="ml-2 inline-flex items-center gap-1 whitespace-nowrap rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
             <FileIcon className="h-3 w-3" />
             {evidenceFileName}
+          </span>
+        )}
+        {evidenceFileName && evidenceDocId && evidenceMimeType && (
+          <span className="ml-2 inline-flex align-middle">
+            <DocumentPreviewButton documentId={evidenceDocId} fileName={evidenceFileName} mimeType={evidenceMimeType} />
           </span>
         )}
       </td>

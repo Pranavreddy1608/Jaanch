@@ -165,23 +165,27 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
         ) : (
           <table className="w-full text-left">
             <tbody>
-              {evaluations.map((e) => (
-                <RequirementRow
-                  key={e.code}
-                  label={e.label}
-                  mandatory={e.mandatory}
-                  outcome={e.outcome}
-                  reason={e.reason}
-                  method={methodByCode.get(e.code)}
-                  evidenceFileName={
-                    e.code === 'OEM_AUTHORIZATION'
-                      ? documentsByType.get('OEM_AUTHORIZATION_CERTIFICATE')?.fileName
-                      : e.code === 'MAKE_IN_INDIA_LOCAL_CONTENT'
-                        ? documentsByType.get('LOCAL_CONTENT_CERTIFICATE')?.fileName
-                        : undefined
-                  }
-                />
-              ))}
+              {evaluations.map((e) => {
+                const evidenceDoc =
+                  e.code === 'OEM_AUTHORIZATION'
+                    ? documentsByType.get('OEM_AUTHORIZATION_CERTIFICATE')
+                    : e.code === 'MAKE_IN_INDIA_LOCAL_CONTENT'
+                      ? documentsByType.get('LOCAL_CONTENT_CERTIFICATE')
+                      : undefined;
+                return (
+                  <RequirementRow
+                    key={e.code}
+                    label={e.label}
+                    mandatory={e.mandatory}
+                    outcome={e.outcome}
+                    reason={e.reason}
+                    method={methodByCode.get(e.code)}
+                    evidenceFileName={evidenceDoc?.fileName}
+                    evidenceDocId={evidenceDoc?.id}
+                    evidenceMimeType={evidenceDoc?.mimeType}
+                  />
+                );
+              })}
             </tbody>
           </table>
         )}
