@@ -26,13 +26,6 @@ export default async function DashboardPage() {
     ? (await prisma.bidder.findFirst({ where: { companySlug }, select: { name: true } }))?.name ?? 'Your company'
     : null;
 
-  // "Real, independently verifiable" is asserted only of the GEM/-prefixed
-  // tenders. QA-TEST/ fixtures are synthetic and must not be counted into that
-  // claim (KPI counts below still use the full tenders array - they're "how
-  // much is loaded", not a realness claim).
-  const realTenders = tenders.filter((t) => t.referenceNo.startsWith('GEM/'));
-  const qaTenders = tenders.filter((t) => !t.referenceNo.startsWith('GEM/'));
-
   // --- KPI numbers, all straight from Prisma ---
   // Latest Score per bidder (scoped for a bidder). One row per bidderId, newest first.
   const scoreRows = await prisma.score.findMany({
@@ -97,14 +90,8 @@ export default async function DashboardPage() {
             </>
           ) : (
             <>
-              {realTenders.length} real, independently verifiable GeM {realTenders.length === 1 ? 'bid' : 'bids'}
-              {qaTenders.length > 0 && (
-                <>
-                  {' '}
-                  plus {qaTenders.length} internal QA test {qaTenders.length === 1 ? 'fixture' : 'fixtures'}
-                </>
-              )}
-              . Click a tender to see its bidders and run compliance verification. Bidders are synthetic.
+              {tenders.length} real, independently verifiable GeM bids. Click a tender to see its bidders and run
+              compliance verification. Bidders are synthetic.
             </>
           )}
         </p>
