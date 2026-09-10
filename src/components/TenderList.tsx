@@ -12,6 +12,7 @@ export interface TenderRow {
   category: string;
   documentDated: string | null; // pre-formatted on the server
   bidEndsAt: string | null; // pre-formatted on the server
+  daysUntilClose: number | null; // computed on the server; null if no date or already closed
   closed: boolean;
   bidderCount: number;
 }
@@ -48,7 +49,18 @@ export function TenderList({ tenders, isBidder }: { tenders: TenderRow[]; isBidd
         <p className="card text-sm text-slate-500">No tenders match “{q}”.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtered.map((t) => (
+          {filtered.map((t) => {
+            // Colour the close date by real urgency: closed stays neutral;
+            // among open tenders, <=3 days reads red, <=14 days amber, further
+            // out green. Same green/amber/red the status checks use elsewhere.
+            const closeDateColor = t.closed
+              ? 'text-slate-500'
+              : t.daysUntilClose !== null && t.daysUntilClose <= 3
+                ? 'text-red-700 font-medium'
+                : t.daysUntilClose !== null && t.daysUntilClose <= 14
+                  ? 'text-amber-700 font-medium'
+                  : 'text-green-700';
+            return (
             <Link
               key={t.id}
               href={`/tenders/${t.id}`}
@@ -56,12 +68,14 @@ export function TenderList({ tenders, isBidder }: { tenders: TenderRow[]; isBidd
             >
               <div className="min-w-0">
                 <h3 className="font-semibold text-slate-900 hover:text-chakra">{t.title}</h3>
-                <div className="mt-0.5 text-xs text-slate-400">{t.referenceNo}</div>
+                <div className="mt-0.5 text-xs font-medium text-chakra">{t.referenceNo}</div>
               </div>
 
               <div className="min-w-0 text-xs text-slate-600">
                 <div>{t.organization}</div>
-                <div className="mt-1 text-slate-400">{t.category}</div>
+                <span className="mt-1 inline-block rounded-full bg-chakra/10 px-2 py-0.5 text-[11px] font-medium text-chakra">
+                  {t.category}
+                </span>
               </div>
 
               <div className="text-xs text-slate-600">
@@ -72,7 +86,8 @@ export function TenderList({ tenders, isBidder }: { tenders: TenderRow[]; isBidd
                 )}
                 {t.bidEndsAt && (
                   <div className="mt-1">
-                    <span className="text-slate-400">Bid closes:</span> {t.bidEndsAt}
+                    <span className="text-slate-400">Bid closes:</span>{' '}
+                    <span className={closeDateColor}>{t.bidEndsAt}</span>
                   </div>
                 )}
               </div>
@@ -92,7 +107,8 @@ export function TenderList({ tenders, isBidder }: { tenders: TenderRow[]; isBidd
                 </span>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
 

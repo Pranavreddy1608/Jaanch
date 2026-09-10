@@ -59,17 +59,24 @@ export default async function DashboardPage() {
     );
   }
 
-  const rows: TenderRow[] = tenders.map((t) => ({
-    id: t.id,
-    title: t.title,
-    referenceNo: t.referenceNo,
-    organization: t.organization,
-    category: t.category,
-    documentDated: t.documentDated ? fmtDate(t.documentDated) : null,
-    bidEndsAt: t.bidEndsAt ? fmtDate(t.bidEndsAt) : null,
-    closed: t.bidEndsAt ? t.bidEndsAt.getTime() < Date.now() : false,
-    bidderCount: t._count.bidders,
-  }));
+  const rows: TenderRow[] = tenders.map((t) => {
+    const closed = t.bidEndsAt ? t.bidEndsAt.getTime() < Date.now() : false;
+    return {
+      id: t.id,
+      title: t.title,
+      referenceNo: t.referenceNo,
+      organization: t.organization,
+      category: t.category,
+      documentDated: t.documentDated ? fmtDate(t.documentDated) : null,
+      bidEndsAt: t.bidEndsAt ? fmtDate(t.bidEndsAt) : null,
+      // Days until the bid window shuts - drives the urgency colour on the
+      // close date. null when there's no date or the tender is already closed.
+      daysUntilClose:
+        t.bidEndsAt && !closed ? Math.ceil((t.bidEndsAt.getTime() - Date.now()) / 86400000) : null,
+      closed,
+      bidderCount: t._count.bidders,
+    };
+  });
 
   return (
     <div className="space-y-6">
