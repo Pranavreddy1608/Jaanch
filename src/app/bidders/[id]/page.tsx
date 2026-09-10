@@ -7,6 +7,8 @@ import { VerifyButton } from '@/components/VerifyButton';
 import { RequirementRow } from '@/components/RequirementRow';
 import { DecisionForm } from '@/components/DecisionForm';
 import { DocumentUpload } from '@/components/DocumentUpload';
+import { StatCard } from '@/components/StatCard';
+import { ShieldCheckIcon, ClipboardIcon } from '@/components/icons';
 import type { RequirementEvaluation } from '@/lib/rulesEngine';
 import { getSession } from '@/lib/session';
 import { canViewBidder, canRunVerification, canUploadDocumentFor } from '@/lib/access';
@@ -40,6 +42,14 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
 
   const latestScore = bidder.scores[0];
   const evaluations: RequirementEvaluation[] = latestScore ? JSON.parse(latestScore.breakdown) : [];
+
+  // Same filter generateRecommendation() uses (recommendation.ts) - a
+  // requirement "needs attention" unless it's MET or waived (NOT_APPLICABLE).
+  const gapCount = evaluations.filter((e) => e.outcome !== 'MET' && e.outcome !== 'NOT_APPLICABLE').length;
+
+  // docType -> document, for wiring the evidence filename onto the two
+  // genuinely document-backed requirement rows below.
+  const documentsByType = new Map(bidder.documents.map((d) => [d.docType, d]));
 
   // Verification method per requirement, for the honesty tag ("real
   // algorithm" vs "simulated") - taken from the most recent
@@ -110,6 +120,30 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
       </div>
 
       {latestScore && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            icon={<ShieldCheckIcon />}
+            value={`${latestScore.complianceScore}/100`}
+            label="Compliance score"
+          />
+          <StatCard
+            icon={<ShieldCheckIcon />}
+            value={latestScore.riskLevel}
+            label="Risk level"
+            badge={latestScore.riskLevel === 'HIGH' ? 'needs attention' : undefined}
+            badgeTone="amber"
+          />
+          <StatCard
+            icon={<ClipboardIcon />}
+            value={gapCount}
+            label={gapCount === 1 ? 'requirement needs attention' : 'requirements need attention'}
+            badge={gapCount === 0 ? 'all clear' : undefined}
+            badgeTone="green"
+          />
+        </div>
+      )}
+
+      {latestScore && (
         <div className="card">
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">AI Recommendation</h3>
           <p className="whitespace-pre-line text-sm text-slate-800">{latestScore.aiRecommendation}</p>
@@ -138,6 +172,13 @@ export default async function BidderDetailPage({ params }: { params: { id: strin
                   outcome={e.outcome}
                   reason={e.reason}
                   method={methodByCode.get(e.code)}
+                  evidenceFileName={
+                    e.code === 'OEM_AUTHORIZATION'
+                      ? documentsByType.get('OEM_AUTHORIZATION_CERTIFICATE')?.fileName
+                      : e.code === 'MAKE_IN_INDIA_LOCAL_CONTENT'
+                        ? documentsByType.get('LOCAL_CONTENT_CERTIFICATE')?.fileName
+                        : undefined
+                  }
                 />
               ))}
             </tbody>
