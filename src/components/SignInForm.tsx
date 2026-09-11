@@ -21,7 +21,7 @@ export function SignInForm({ captchaSvg, captchaToken }: { captchaSvg: string; c
   const router = useRouter();
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-5">
       <div>
         <label className="block text-xs font-medium text-ink-muted">Officer / Viewer ID</label>
         <div className="relative mt-1">
@@ -55,16 +55,16 @@ export function SignInForm({ captchaSvg, captchaToken }: { captchaSvg: string; c
 
       <div>
         <label className="block text-xs font-medium text-ink-muted">Type the characters shown</label>
-        <div className="mt-1 flex items-center gap-3">
+        <div className="mt-1.5 flex items-center gap-3 rounded-md border border-line bg-surface-container p-2">
           <span
-            className="shrink-0 overflow-hidden rounded-md border border-line"
+            className="shrink-0 overflow-hidden rounded border border-line bg-white"
             // Server-rendered SVG from a fixed alphabet - no user input in it.
             dangerouslySetInnerHTML={{ __html: captchaSvg }}
           />
           <button
             type="button"
             onClick={() => router.refresh()}
-            className="btn-secondary text-xs"
+            className="btn-ghost shrink-0 text-xs"
             title="Load a new image"
           >
             <RefreshIcon className="h-3.5 w-3.5" />
@@ -78,12 +78,14 @@ export function SignInForm({ captchaSvg, captchaToken }: { captchaSvg: string; c
           autoComplete="off"
           spellCheck={false}
           maxLength={8}
-          className="field mt-2 uppercase tracking-widest"
+          className="field mt-2 font-mono uppercase tracking-[0.3em]"
           placeholder="CAPTCHA"
         />
       </div>
 
-      {state.status === 'error' && <p className="text-xs text-critical">{state.message}</p>}
+      {state.status === 'error' && (
+        <p className="rounded-md border border-critical/30 bg-critical/5 px-3 py-2 text-xs text-critical">{state.message}</p>
+      )}
       <SubmitButton />
       <p className="text-xs text-ink-faint">
         Access is restricted to authorised procurement staff. Every recorded decision and uploaded document is tied to
