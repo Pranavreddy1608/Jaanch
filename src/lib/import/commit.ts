@@ -3,7 +3,7 @@ import AdmZip from 'adm-zip';
 import { prisma } from '@/lib/db';
 import { logAudit } from '@/lib/auditLog';
 import { downloadDatasetFile } from '@/lib/supabaseStorage';
-import type { BidderDocumentEntry, CommitResult, ImportMode, ImportReview, RecordsEntry, TenderEntry } from './types';
+import type { BidderDocumentEntry, CommitResult, DocumentAttachResult, ImportMode, ImportReview, RecordsEntry, TenderEntry } from './types';
 
 /**
  * The standard requirement set every GeM seller faces regardless of the
@@ -35,6 +35,13 @@ async function wipeAll() {
   await prisma.complianceRequirement.deleteMany();
   await prisma.tender.deleteMany();
   await prisma.importBatch.deleteMany(); // Tender FKs to ImportBatch, so after tenders
+}
+
+/** Keeps a summary line readable when a big ZIP produces dozens of per-file notes. */
+function joinNotes(notes: string[], keep = 4): string {
+  if (notes.length === 0) return '';
+  if (notes.length <= keep) return ' ' + notes.join(' ');
+  return ` ${notes.slice(0, keep).join(' ')} …and ${notes.length - keep} more (see /admin/import).`;
 }
 
 const slug = (s: string) =>
@@ -186,8 +193,42 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
     }
   }
 
-  // --- bidder documents (PDFs inside a manifest-driven ZIP, attached to an
-  // already-existing bidder matched by tenderReferenceNo + companySlug) ---
+  // --- bidder documents -----------------------------------------------------
+  // PDFs inside a ZIP, attached to an ALREADY-EXISTING bidder. Two sources,
+  // same write path:
+  //   'manifest' - target came from the ZIP's manifest.json (tenderReferenceNo
+  //                is always present).
+  //   'inferred' - no manifest; company + doc type were read off the
+  //                <companySlug>__<doctype>.pdf filename, and the tender either
+  //                from a GEM/... subfolder or (when there's no subfolder) from
+  //                the slug here: exactly one live bidder with that slug -> use
+  //                its tender; more than one -> ambiguous, skip that file only.
+  const documentResults: DocumentAttachResult[] = [];
+
+  /** Which bidder (if any) a document entry attaches to. */
+  const resolveDocBidder = async (
+    d: BidderDocumentEntry,
+  ): Promise<{ bidderId: string; tenderRef: string } | { skip: string }> => {
+    if (d.tenderReferenceNo) {
+      const tender = await prisma.tender.findUnique({ where: { referenceNo: d.tenderReferenceNo }, select: { id: true } });
+      if (!tender) return { skip: `tender ${d.tenderReferenceNo} not found` };
+      const bidder = await prisma.bidder.findFirst({ where: { tenderId: tender.id, companySlug: d.companySlug }, select: { id: true } });
+      if (!bidder) return { skip: `no bidder with company slug "${d.companySlug}" on tender ${d.tenderReferenceNo} — import that bidder's spreadsheet first, then re-run` };
+      return { bidderId: bidder.id, tenderRef: d.tenderReferenceNo };
+    }
+    // inferred, no subfolder hint: resolve the tender from the slug alone.
+    const matches = await prisma.bidder.findMany({
+      where: { companySlug: d.companySlug },
+      select: { id: true, tender: { select: { referenceNo: true } } },
+    });
+    if (matches.length === 0) return { skip: `no live bidder has company slug "${d.companySlug}" — import that bidder's spreadsheet first, then re-run` };
+    const refs = [...new Set(matches.map((m) => m.tender.referenceNo))];
+    if (refs.length > 1) {
+      return { skip: `company slug "${d.companySlug}" bids on ${refs.length} tenders (${refs.join(', ')}) — put this file in a subfolder named the tender's referenceNo, or use a manifest.json` };
+    }
+    return { bidderId: matches[0].id, tenderRef: refs[0] };
+  };
+
   if (bidderDocs.length > 0) {
     // The review object only ever carries lightweight metadata for these
     // entries (never the file bytes - that would bloat reviewJson, which
@@ -206,32 +247,57 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
     }
 
     for (const d of bidderDocs) {
-      const tender = await prisma.tender.findUnique({ where: { referenceNo: d.tenderReferenceNo }, select: { id: true } });
-      if (!tender) {
-        notes.push(`Document "${d.filename}": tender ${d.tenderReferenceNo} not found — skipped.`);
+      const fileName = d.filename.split('/').pop() ?? d.filename;
+
+      const resolved = await resolveDocBidder(d);
+      if ('skip' in resolved) {
+        notes.push(`Document "${d.filename}": ${resolved.skip}.`);
+        documentResults.push({ file: fileName, outcome: 'skipped', detail: resolved.skip });
         continue;
       }
-      const bidder = await prisma.bidder.findFirst({ where: { tenderId: tender.id, companySlug: d.companySlug }, select: { id: true } });
-      if (!bidder) {
-        notes.push(`Document "${d.filename}": no bidder with company slug "${d.companySlug}" on tender ${d.tenderReferenceNo} — import that bidder's spreadsheet first, then re-review this ZIP.`);
-        continue;
-      }
+      const { bidderId, tenderRef } = resolved;
+
       const zipEntry = sourceZip.getEntry(d.filename);
       if (!zipEntry) {
         notes.push(`Document "${d.filename}": could not find this file inside the ZIP on re-read — skipped.`);
+        documentResults.push({ file: fileName, outcome: 'skipped', detail: 'not found inside the ZIP on re-read' });
         continue;
       }
-      const fileData = zipEntry.getData();
-      const fileName = d.filename.split('/').pop() ?? d.filename;
 
+      // Inferred entries: an identical file (same bidder + doc type + name)
+      // already on record is a re-run of the same ZIP - ignore it silently,
+      // don't stack a second copy. The manifest path keeps its replace
+      // semantics (deleteMany by doc type below) unchanged.
+      if (d.source === 'inferred') {
+        const dup = await prisma.document.findFirst({ where: { bidderId, docType: d.docType, fileName }, select: { id: true } });
+        if (dup) {
+          notes.push(`Document "${fileName}": already attached to "${d.companySlug}" (${tenderRef}) — duplicate ignored.`);
+          documentResults.push({ file: fileName, outcome: 'skipped', detail: `already attached to ${d.companySlug} (${tenderRef}) — duplicate ignored` });
+          continue;
+        }
+      }
+
+      const fileData = zipEntry.getData();
       await prisma.$transaction([
-        prisma.document.deleteMany({ where: { bidderId: bidder.id, docType: d.docType } }),
+        prisma.document.deleteMany({ where: { bidderId, docType: d.docType } }),
         prisma.document.create({
-          data: { bidderId: bidder.id, docType: d.docType, fileName, mimeType: d.mimeType, fileData, rawText: null },
+          data: { bidderId, docType: d.docType, fileName, mimeType: d.mimeType, fileData, rawText: null },
         }),
       ]);
       documentsAttached++;
+      documentResults.push({ file: fileName, outcome: 'attached', detail: `${d.docType} → ${d.companySlug} (${tenderRef})` });
     }
+  }
+
+  // A no-manifest bidder-document bundle that resolved to nothing: roll the
+  // empty ImportBatch row back so its storagePath doesn't count as "already
+  // imported" - re-uploading (or a "Scan now") after the matching bidder
+  // spreadsheet lands will then actually retry it.
+  const isInferredBundle = bidderDocs.some((d) => d.source === 'inferred');
+  if (mode === 'add' && isInferredBundle && created === 0 && documentsAttached === 0 && tenders.length === 0) {
+    await prisma.importBatch.delete({ where: { id: batch.id } });
+    const summary = `Add from "${review.sourceFilename}": no documents could be auto-matched.${joinNotes(notes)}`;
+    return { importBatchId: '', recordsCreated: 0, summary, notes, documentResults };
   }
 
   const summaryParts: string[] = [];
@@ -240,7 +306,7 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
   if (documentsAttached > 0) summaryParts.push(`${documentsAttached} document(s) attached`);
   if (review.warnings.length) summaryParts.push(`${review.warnings.length} warning(s)`);
   if (notes.length) summaryParts.push(`${notes.length} note(s)`);
-  const summary = `${mode === 'replace-all' ? 'Replace All' : 'Add'} from "${review.sourceFilename}": ${summaryParts.join(', ') || 'nothing created'}.${notes.length ? ' ' + notes.join(' ') : ''}`;
+  const summary = `${mode === 'replace-all' ? 'Replace All' : 'Add'} from "${review.sourceFilename}": ${summaryParts.join(', ') || 'nothing created'}.${joinNotes(notes)}`;
 
   const updated = await prisma.importBatch.update({
     where: { id: batch.id },
@@ -253,5 +319,5 @@ export async function commitImport(review: ImportReview, mode: ImportMode, proce
     details: { importBatchId: batch.id, filename: review.sourceFilename, mode, recordsCreated: created, documentsAttached, tenders: tCount },
   });
 
-  return { importBatchId: updated.id, recordsCreated: created, summary, notes };
+  return { importBatchId: updated.id, recordsCreated: created, summary, notes, documentResults };
 }

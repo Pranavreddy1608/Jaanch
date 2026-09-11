@@ -18,7 +18,8 @@ import { autoImportState, pushLog, markProcessed, type AutoImportLogEntry } from
  */
 
 // File extensions the manual flow accepts that are safe to auto-commit
-// without a review step: bidder spreadsheets and manifest-driven doc ZIPs.
+// without a review step: bidder spreadsheets and bidder-document ZIPs
+// (manifest.json-driven, or targets inferred from each PDF's filename).
 const AUTO_EXTS = new Set(['xlsx', 'xls', 'csv', 'zip']);
 const PROCESSED_BY = 'auto-import (storage watcher)';
 
@@ -120,6 +121,34 @@ async function purgeDeletedImports(currentNames: string[]): Promise<void> {
   }
 }
 
+/**
+ * Pushes one panel line per item, capped so a large ZIP where every PDF is
+ * mis-named (or every bidder is missing) doesn't bury the rest of the feed.
+ */
+function logCapped(
+  zipName: string,
+  items: { file: string; detail: string }[],
+  outcome: AutoImportLogEntry['outcome'],
+  via: AutoImportLogEntry['via'],
+  importBatchId?: string,
+  cap = 8,
+): void {
+  if (items.length === 0) return;
+  for (const it of items.slice(0, cap)) {
+    pushLog({ at: new Date().toISOString(), filename: `${zipName} › ${it.file}`, outcome, detail: it.detail, via, importBatchId });
+  }
+  if (items.length > cap) {
+    pushLog({
+      at: new Date().toISOString(),
+      filename: zipName,
+      outcome,
+      detail: `…and ${items.length - cap} more ${outcome === 'imported' ? 'attached' : 'skipped'} — see /admin/import for the full list.`,
+      via,
+      importBatchId,
+    });
+  }
+}
+
 async function processOneFile(name: string, via: AutoImportLogEntry['via'], done: Set<string>): Promise<void> {
   const ext = extOf(name);
   const base = { at: new Date().toISOString(), filename: name, via };
@@ -139,24 +168,17 @@ async function processOneFile(name: string, via: AutoImportLogEntry['via'], done
     return;
   }
 
-  // A ZIP is only auto-imported when it carries a manifest.json at its root -
-  // that's a bidder-document bundle (the manifest routes each PDF straight to
-  // a Document row, no LLM). A ZIP without one is a tender/PDF bundle whose
-  // extracted fields need human review, and running readImportFile on it here
-  // would burn LLM calls we then discard. Check before parsing.
+  // A ZIP is auto-imported when it's a bidder-document bundle: either it
+  // carries a manifest.json at its root (the manifest routes each PDF straight
+  // to a Document row), or it has no manifest and each PDF's target is inferred
+  // from its <companySlug>__<doctype>.pdf path (readImportFile). A ZIP that
+  // still yields tender document(s) - a manifest ZIP with unlisted PDFs - is
+  // left for a human review at /admin/import (the hasTender check below).
   if (ext === 'zip') {
-    let hasManifest = false;
     try {
-      hasManifest = new AdmZip(buffer)
-        .getEntries()
-        .some((e) => !e.isDirectory && (e.entryName.split('/').pop() ?? e.entryName) === 'manifest.json');
+      new AdmZip(buffer);
     } catch (err) {
       pushLog({ ...base, outcome: 'error', detail: `not a readable ZIP: ${err instanceof Error ? err.message : String(err)}` });
-      return;
-    }
-    if (!hasManifest) {
-      pushLog({ ...base, outcome: 'skipped', detail: 'ZIP has no manifest.json — a tender/PDF bundle, open it at /admin/import for review.' });
-      markProcessed(name);
       return;
     }
   }
@@ -169,6 +191,17 @@ async function processOneFile(name: string, via: AutoImportLogEntry['via'], done
     return;
   }
 
+  // One panel line per PDF that couldn't be auto-matched to a bidder from its
+  // filename (bad naming / unknown keyword) - with the rename hint, so it's
+  // clear exactly what to fix. One bad name never blocks the rest of the ZIP.
+  // Capped so a large all-mismatched ZIP doesn't flood the feed.
+  logCapped(
+    name,
+    review.entries.filter((e) => e.kind === 'skipped' && e.filename !== name).map((e) => ({ file: (e as { filename: string }).filename, detail: (e as { reason: string }).reason })),
+    'skipped',
+    via,
+  );
+
   const hasTender = review.entries.some((e) => e.kind === 'tender');
   if (hasTender) {
     pushLog({ ...base, outcome: 'skipped', detail: 'contains tender document(s) — extracted fields need a human review, open it at /admin/import.' });
@@ -178,21 +211,46 @@ async function processOneFile(name: string, via: AutoImportLogEntry['via'], done
   const hasRecords = review.entries.some((e) => e.kind === 'records' && e.extraction.records.length > 0);
   const hasBidderDocs = review.entries.some((e) => e.kind === 'bidderDocument');
   if (!hasRecords && !hasBidderDocs) {
-    pushLog({ ...base, outcome: 'skipped', detail: 'no bidder rows and no manifest-listed documents found in the file.' });
+    pushLog({ ...base, outcome: 'skipped', detail: 'no bidder rows and no auto-matchable documents found in the file.' });
     markProcessed(name);
     return;
   }
 
   try {
     const result = await commitImport(review, 'add', PROCESSED_BY);
-    const m = result.summary.match(/(\d+) document\(s\) attached/);
+
+    // One panel line per document the commit resolved (attached) or couldn't
+    // (duplicate / ambiguous / bidder-not-yet-imported), capped for big ZIPs.
+    logCapped(
+      name,
+      result.documentResults.filter((d) => d.outcome === 'attached').map((d) => ({ file: d.file, detail: d.detail })),
+      'imported',
+      via,
+      result.importBatchId || undefined,
+    );
+    logCapped(
+      name,
+      result.documentResults.filter((d) => d.outcome === 'skipped').map((d) => ({ file: d.file, detail: d.detail })),
+      'skipped',
+      via,
+      result.importBatchId || undefined,
+    );
+
+    const attached = result.documentResults.filter((d) => d.outcome === 'attached').length;
+    const skipped = result.documentResults.length - attached;
+    // A short tally line (the per-file lines above carry the detail; the full
+    // text is on the ImportBatch in /admin/import).
+    const tally =
+      result.documentResults.length > 0
+        ? `${attached} document(s) attached, ${skipped} skipped${result.recordsCreated ? `, ${result.recordsCreated} record(s) created` : ''}.`
+        : result.summary;
     pushLog({
       ...base,
-      outcome: 'imported',
-      detail: result.summary,
+      outcome: result.importBatchId ? 'imported' : 'skipped',
+      detail: tally,
       recordsCreated: result.recordsCreated,
-      documentsAttached: m ? Number(m[1]) : undefined,
-      importBatchId: result.importBatchId,
+      documentsAttached: attached || undefined,
+      importBatchId: result.importBatchId || undefined,
     });
     markProcessed(name);
   } catch (err) {

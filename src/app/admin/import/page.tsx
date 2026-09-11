@@ -148,10 +148,18 @@ async function FileReview({ path, secret }: { path: string; secret: string }) {
                 <span className="text-sm font-semibold text-ink">{entry.filename}</span>
                 <span className="badge badge-neutral">bidder document · {entry.docType}</span>
                 <span className="badge badge-neutral">{Math.round(entry.sizeBytes / 1024)} KB</span>
+                <span className="badge badge-neutral">
+                  {entry.source === 'manifest' ? 'from manifest.json' : 'inferred from filename'}
+                </span>
               </div>
               <p className="mt-1 text-xs text-ink-muted">
-                Will attach to the bidder with company slug &quot;<strong>{entry.companySlug}</strong>&quot; on tender{' '}
-                <strong>{entry.tenderReferenceNo}</strong> — that bidder must already exist (import its spreadsheet first).
+                Will attach to the bidder with company slug &quot;<strong>{entry.companySlug}</strong>&quot; on{' '}
+                {entry.tenderReferenceNo ? (
+                  <>tender <strong>{entry.tenderReferenceNo}</strong></>
+                ) : (
+                  <>whichever single tender that slug bids on (ambiguous if more than one)</>
+                )}{' '}
+                — that bidder must already exist (import its spreadsheet first).
               </p>
             </div>
           );

@@ -7,6 +7,7 @@ import {
 } from '@/lib/ai/documentExtraction';
 import { hasLLM } from '@/lib/ai/llm';
 import { mimeForFilename } from './mime';
+import { parseInferredDocName } from './inferBidderDoc';
 import { REQUIRED_TENDER_FIELDS, type ImportEntry, type ImportReview, type TenderEntry } from './types';
 
 const SPREADSHEET_EXT = new Set(['xlsx', 'xls', 'csv']);
@@ -64,6 +65,12 @@ export async function readImportFile(filename: string, buffer: Buffer): Promise<
     // entry and never sent through the tender-extraction LLM call. This is
     // what makes a bidder-documents ZIP import fast regardless of how many
     // PDFs it contains, and regardless of their total size.
+    //
+    // No manifest.json? Then this is treated as a bidder-document bundle too,
+    // and each PDF's target is inferred from the <companySlug>__<doctype>.pdf
+    // filename convention (parseInferredDocName). A PDF that doesn't match the
+    // convention is skipped individually with a rename hint - never sent to the
+    // tender extractor, never allowed to block the other files.
     let manifest: ManifestRow[] = [];
     const manifestZipEntry = zipEntries.find((e) => (e.entryName.split('/').pop() ?? e.entryName) === 'manifest.json');
     if (manifestZipEntry) {
@@ -85,6 +92,7 @@ export async function readImportFile(filename: string, buffer: Buffer): Promise<
       }
     }
     const manifestByPath = new Map(manifest.map((m) => [m.filename, m]));
+    const hasManifest = manifestZipEntry != null;
 
     for (const ze of zipEntries) {
       const inner = ze.entryName.split('/').pop() ?? ze.entryName;
@@ -96,6 +104,7 @@ export async function readImportFile(filename: string, buffer: Buffer): Promise<
       if (manifestRow && iext === 'pdf') {
         entries.push({
           kind: 'bidderDocument',
+          source: 'manifest',
           filename: ze.entryName,
           tenderReferenceNo: manifestRow.tenderReferenceNo,
           companySlug: manifestRow.companySlug,
@@ -103,6 +112,33 @@ export async function readImportFile(filename: string, buffer: Buffer): Promise<
           mimeType: 'application/pdf',
           sizeBytes: data.length,
         });
+        continue;
+      }
+
+      // No manifest at all -> infer this PDF's bidder / doc-type / tender from
+      // its path. Anything that doesn't resolve cleanly is skipped on its own,
+      // with a hint, and never sent to the tender extractor.
+      if (!hasManifest && iext === 'pdf') {
+        const parsed = parseInferredDocName(ze.entryName);
+        if (parsed.ok) {
+          entries.push({
+            kind: 'bidderDocument',
+            source: 'inferred',
+            filename: ze.entryName,
+            tenderReferenceNo: parsed.tenderReferenceNo,
+            companySlug: parsed.companySlug,
+            docType: parsed.docType,
+            mimeType: 'application/pdf',
+            sizeBytes: data.length,
+          });
+        } else {
+          entries.push({
+            kind: 'skipped',
+            filename: ze.entryName,
+            reason: `${parsed.reason} Rename it to <companySlug>__<doctype>.pdf (doctype = oem / local / pan / gst / udyam), or add a manifest.json.`,
+          });
+          warnings.push(`"${inner}" couldn't be auto-matched to a bidder — skipped.`);
+        }
         continue;
       }
 
