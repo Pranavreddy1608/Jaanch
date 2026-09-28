@@ -76,7 +76,17 @@ function tryLock<T>(fn: () => Promise<T>): Promise<T | null> {
  * ImportBatch row. The old reverted row stays as history.
  */
 async function committedPaths(): Promise<Set<string>> {
-  const rows = await prisma.importBatch.findMany({ where: { revertedAt: null }, select: { storagePath: true } });
+  const docCount = await prisma.document.count();
+  const rows = await prisma.importBatch.findMany({
+    where: {
+      revertedAt: null,
+      OR: [
+        { recordsCreated: { gt: 0 } },
+        ...(docCount > 0 ? [{ summary: { contains: 'document(s) attached' } }] : []),
+      ],
+    },
+    select: { storagePath: true },
+  });
   return new Set(rows.map((r) => r.storagePath));
 }
 
@@ -267,9 +277,8 @@ export async function runAutoImport(via: AutoImportLogEntry['via'] = 'poll'): Pr
   const body = async () => {
     // A manual "Scan now" reconsiders every non-committed file; the poll and
     // Realtime paths also skip ones already handled this process run
-    // (skipped/ignored land in processedPaths) so a 9s poll doesn't re-log
-    // them every tick.
-    if (via === 'manual') autoImportState.processedPaths = [];
+    const currentDocCount = await prisma.document.count();
+    if (via === 'manual' || currentDocCount === 0) autoImportState.processedPaths = [];
     const [names, done] = await Promise.all([bucketObjectNames(), committedPaths()]);
 
     // Source file for a past import gone from the bucket? Cascade-delete its

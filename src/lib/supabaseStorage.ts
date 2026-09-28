@@ -57,3 +57,29 @@ export async function downloadDatasetFile(path: string): Promise<Buffer> {
   if (error || !data) throw new Error(`Could not download "${path}" from "${DATASET_BUCKET}": ${error?.message ?? 'no data'}`);
   return Buffer.from(await data.arrayBuffer());
 }
+
+/** Uploads a file buffer directly into the Supabase Storage bucket. */
+export async function uploadFileToStorage(path: string, buffer: Buffer, mimeType: string): Promise<string> {
+  const { data, error } = await client().storage.from(DATASET_BUCKET).upload(path, buffer, {
+    contentType: mimeType,
+    upsert: true,
+  });
+  if (error || !data) {
+    throw new Error(`Could not upload "${path}" to "${DATASET_BUCKET}": ${error?.message ?? 'unknown error'}`);
+  }
+  return data.path;
+}
+
+/** Deletes a file from the Supabase Storage bucket. */
+export async function deleteStorageFile(path: string): Promise<void> {
+  const { error } = await client().storage.from(DATASET_BUCKET).remove([path]);
+  if (error) {
+    throw new Error(`Could not delete "${path}" from "${DATASET_BUCKET}": ${error.message}`);
+  }
+}
+
+/** Returns the public URL for a file in Supabase Storage. */
+export function getStoragePublicUrl(path: string): string {
+  const { data } = client().storage.from(DATASET_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}

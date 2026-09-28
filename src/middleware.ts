@@ -8,7 +8,7 @@ const SESSION_COOKIE = 'gem_session';
 // officer/viewer/bidder session model, gated by its own ADMIN_IMPORT_SECRET.
 // /api/auto-import/* backs that same tool's live status panel and is gated by
 // the same secret, so it's out of the session gate too.
-const PUBLIC_PATHS = ['/sign-in', '/admin', '/api/auto-import'];
+const PUBLIC_PATHS = ['/sign-in', '/admin', '/api', '/demo-login'];
 
 /**
  * Gate: an unauthenticated visitor loading a page is sent to /sign-in. This

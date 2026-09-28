@@ -64,7 +64,8 @@ export function TenderList({ tenders, isBidder }: { tenders: TenderRow[]; isBidd
               <Link
                 key={t.id}
                 href={`/tenders/${t.id}`}
-                className="group grid w-full gap-4 rounded-lg border border-line bg-surface-lowest p-4 shadow-card transition-colors hover:border-navy/40 sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1.8fr)_minmax(0,1.1fr)_auto] sm:items-start"
+                prefetch={true}
+                className="card group grid w-full gap-4 rounded-lg border border-line bg-surface-lowest p-4 shadow-card sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1.8fr)_minmax(0,1.1fr)_auto] sm:items-start cursor-pointer"
               >
                 <div className="min-w-0">
                   <h3 className="font-heading font-semibold text-ink group-hover:text-navy">{t.title}</h3>

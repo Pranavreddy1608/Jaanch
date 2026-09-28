@@ -6,6 +6,9 @@ import { RiskBadge } from '@/components/RiskBadge';
 import { VerifyButton } from '@/components/VerifyButton';
 import { getSession } from '@/lib/session';
 import { canRunVerification } from '@/lib/access';
+import { TenderDetailViewTabs } from '@/components/TenderDetailViewTabs';
+import { BatchVerifyButton } from '@/components/BatchVerifyButton';
+import { FileIcon } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +27,15 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
         include: {
           scores: { orderBy: { computedAt: 'desc' }, take: 1 },
           decisions: { orderBy: { decidedAt: 'desc' }, take: 1 },
+          verificationResults: { orderBy: { checkedAt: 'desc' }, select: { requirementCode: true, status: true } },
+          documents: {
+            select: {
+              id: true,
+              docType: true,
+              fileName: true,
+              mimeType: true,
+            },
+          },
         },
       },
     },
@@ -109,58 +121,98 @@ export default async function TenderDetailPage({ params }: { params: { id: strin
         )}
       </div>
 
-      <div className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-line bg-surface text-label uppercase tracking-wide text-ink-muted">
-              <tr>
-                <th className="px-4 py-3">{isBidder ? 'Your bid' : 'Bidder'}</th>
-                <th className="px-4 py-3">Compliance score</th>
-                <th className="px-4 py-3">Risk level</th>
-                <th className="px-4 py-3">PO decision</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {tender.bidders.map((bidder) => {
-                const latestScore = bidder.scores[0];
-                const latestDecision = bidder.decisions[0];
-                return (
-                  <tr key={bidder.id} className="border-t border-line">
-                    <td className="px-4 py-3">
-                      <Link href={`/bidders/${bidder.id}`} className="font-medium text-ink hover:text-navy hover:underline">
-                        {bidder.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <ScoreBadge score={latestScore?.complianceScore ?? null} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <RiskBadge level={latestScore?.riskLevel ?? null} />
-                    </td>
-                    <td className="px-4 py-3 text-ink-muted">{latestDecision ? latestDecision.outcome : 'Pending'}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {!isBidder && (
-                          <VerifyButton
-                            bidderId={bidder.id}
-                            label={latestScore ? 'Re-verify' : 'Run Verification'}
-                            disabledReason={canVerify ? undefined : viewerNote}
-                            compact
-                          />
-                        )}
-                        <Link href={`/bidders/${bidder.id}`} className="text-sm font-medium text-navy hover:underline">
-                          Details →
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {!isBidder && (
+        <div className="card flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface-lowest border border-line shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-navy uppercase tracking-wider">Tender Evaluation Actions:</span>
+            <span className="text-xs text-ink-muted">({tender.bidders.length} participating bidders)</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href={`/tenders/${tender.id}/executive-report`}
+              className="btn-secondary text-xs py-2 px-3 inline-flex items-center gap-1.5"
+            >
+              <FileIcon className="h-3.5 w-3.5 text-navy" />
+              <span>Official Executive Report & Certificate</span>
+            </Link>
+            <BatchVerifyButton
+              tenderId={tender.id}
+              bidderCount={tender.bidders.length}
+              disabled={!canVerify}
+              disabledReason={canVerify ? undefined : viewerNote}
+            />
+          </div>
         </div>
-      </div>
+      )}
+
+      <TenderDetailViewTabs
+        bidders={tender.bidders as any}
+        tender={tender}
+        canVerify={canVerify}
+        isBidder={isBidder}
+      >
+        <div className="card overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="border-b border-line bg-surface text-label uppercase tracking-wide text-ink-muted">
+                <tr>
+                  <th className="px-4 py-3">{isBidder ? 'Your bid' : 'Bidder'}</th>
+                  <th className="px-4 py-3">Compliance score</th>
+                  <th className="px-4 py-3">Risk level</th>
+                  <th className="px-4 py-3">PO decision</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {tender.bidders.map((bidder) => {
+                  const latestScore = bidder.scores[0];
+                  const latestDecision = bidder.decisions[0];
+                  return (
+                    <tr key={bidder.id} className="bidder-row border-t border-line">
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/bidders/${bidder.id}`}
+                          prefetch={true}
+                          className="font-medium text-ink hover:text-navy hover:underline"
+                        >
+                          {bidder.name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3">
+                        <ScoreBadge score={latestScore?.complianceScore ?? null} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <RiskBadge level={latestScore?.riskLevel ?? null} />
+                      </td>
+                      <td className="px-4 py-3 text-ink-muted">{latestDecision ? latestDecision.outcome : 'Pending'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {!isBidder && (
+                            <VerifyButton
+                              bidderId={bidder.id}
+                              bidderName={bidder.name}
+                              label={latestScore ? 'Re-verify' : 'Run Verification'}
+                              disabledReason={canVerify ? undefined : viewerNote}
+                              compact
+                            />
+                          )}
+                          <Link
+                            href={`/bidders/${bidder.id}`}
+                            prefetch={true}
+                            className="text-sm font-medium text-navy hover:underline"
+                          >
+                            Details →
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </TenderDetailViewTabs>
     </div>
   );
 }

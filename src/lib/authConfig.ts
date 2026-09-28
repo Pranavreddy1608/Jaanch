@@ -39,7 +39,7 @@ export const STAFF_CREDENTIALS: StaffCredential[] = [
     username: 'officer',
     passwordHash: resolve(process.env.OFFICER_PASSWORD, BAKED.officer),
     role: 'officer',
-    name: 'R. Kalyanasundaram',
+    name: 'V.Pranav Reddy',
   },
   {
     username: 'viewer',

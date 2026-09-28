@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 /**
  * Hand-rolled SVG ring (stroke-dasharray, no chart library) showing the real
  * LOW / MEDIUM / HIGH split of the latest Score per bidder. Colours are the
@@ -49,20 +51,29 @@ export function RiskDonut({ low, medium, high }: { low: number; medium: number; 
         </div>
       </div>
 
-      <div className="space-y-1.5 text-xs">
+      <div className="space-y-1.5 text-xs flex-1">
         {(
           [
-            ['LOW', low, 'bg-risk-low'],
-            ['MEDIUM', medium, 'bg-risk-medium'],
-            ['HIGH', high, 'bg-risk-high'],
+            ['LOW', low, 'bg-risk-low', '/bidders?filter=low'],
+            ['MEDIUM', medium, 'bg-risk-medium', '/bidders?filter=medium'],
+            ['HIGH', high, 'bg-risk-high', '/bidders?filter=high-risk'],
           ] as const
-        ).map(([label, v, dot]) => (
-          <div key={label} className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden="true" />
-            <span className="w-16 font-medium text-ink-muted">{label}</span>
-            <span className="font-mono tabular-nums text-ink">{v}</span>
-            <span className="text-ink-faint">{total === 0 ? '' : `(${Math.round((v / total) * 100)}%)`}</span>
-          </div>
+        ).map(([label, v, dot, href]) => (
+          <Link
+            key={label}
+            href={href}
+            className="flex items-center justify-between gap-2 p-1 -mx-1 rounded hover:bg-surface-low transition-colors group cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+              <span className="w-16 font-medium text-ink-muted group-hover:text-navy transition-colors">{label}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono tabular-nums text-ink font-semibold group-hover:text-navy">{v}</span>
+              <span className="text-ink-faint w-10 text-right">{total === 0 ? '' : `(${Math.round((v / total) * 100)}%)`}</span>
+              <span className="opacity-0 group-hover:opacity-100 text-[10px] text-navy font-bold transition-opacity">→</span>
+            </div>
+          </Link>
         ))}
         {total === 0 && <p className="pt-1 text-ink-faint">No bidders verified yet — run verification on a tender.</p>}
       </div>

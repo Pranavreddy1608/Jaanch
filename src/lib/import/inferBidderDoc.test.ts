@@ -52,6 +52,12 @@ test('maps every documented keyword case-insensitively as a substring', () => {
     ['acme__GST-registration.pdf', 'GST_CERTIFICATE'],
     ['acme__udyam.pdf', 'UDYAM_CERTIFICATE'],
     ['acme__Udyam-MSME.pdf', 'UDYAM_CERTIFICATE'],
+    ['acme__epfo.pdf', 'EPFO_ESIC_CHALLAN'],
+    ['acme__esic-challan.pdf', 'EPFO_ESIC_CHALLAN'],
+    ['acme__startup.pdf', 'STARTUP_INDIA_CERTIFICATE'],
+    ['acme__nsic.pdf', 'NSIC_CERTIFICATE'],
+    ['acme__digilocker.pdf', 'DIGILOCKER_CERTIFICATE'],
+    ['acme__bis-cert.pdf', 'BIS_QUALITY_CERTIFICATE'],
   ];
   for (const [name, docType] of cases) {
     const r = parseInferredDocName(name);

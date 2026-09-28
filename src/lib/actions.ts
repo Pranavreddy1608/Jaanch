@@ -23,6 +23,29 @@ export async function runVerification(bidderId: string) {
   await revalidateBidder(bidderId);
 }
 
+export async function batchRunVerification(tenderId: string): Promise<{ total: number; verified: number }> {
+  const session = getSession();
+  if (!session) throw new Error('Session expired — sign in again.');
+  if (!canRunVerification(session)) throw new Error('Only a Procurement Officer can run verification.');
+  if (!tenderId) throw new Error('Missing tender.');
+
+  const bidders = await prisma.bidder.findMany({
+    where: { tenderId },
+    select: { id: true },
+  });
+
+  let count = 0;
+  for (const b of bidders) {
+    await runVerificationForBidder(b.id);
+    count++;
+  }
+
+  revalidatePath('/dashboard');
+  revalidatePath(`/tenders/${tenderId}`);
+  revalidatePath('/bidders');
+  return { total: bidders.length, verified: count };
+}
+
 export type UploadState = { status: 'idle' } | { status: 'ok'; message: string } | { status: 'error'; message: string };
 
 const ALLOWED_UPLOAD_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);

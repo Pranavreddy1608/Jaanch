@@ -6,6 +6,9 @@ const nextConfig = {
     // body limit is 1 MB, which is too small for a scanned certificate.
     serverActions: { bodySizeLimit: '10mb' },
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

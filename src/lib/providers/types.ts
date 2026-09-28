@@ -60,7 +60,7 @@ export interface VerificationInput {
  *   'sandbox-probe'  - a real network probe against a government sandbox,
  *                      document-level result still simulated
  */
-export type VerificationMethod = 'real' | 'real+simulated' | 'simulated' | 'sandbox-probe';
+export type VerificationMethod = 'real' | 'real+simulated' | 'simulated' | 'sandbox-probe' | 'live-api';
 
 export interface VerificationResultPayload {
   status: VerificationStatus;

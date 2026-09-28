@@ -23,6 +23,11 @@ const DOC_TYPE_RULES: { match: RegExp; docType: string }[] = [
   { match: /pan/i, docType: 'PAN_CARD' },
   { match: /gst/i, docType: 'GST_CERTIFICATE' },
   { match: /udyam/i, docType: 'UDYAM_CERTIFICATE' },
+  { match: /epfo|esic|labour/i, docType: 'EPFO_ESIC_CHALLAN' },
+  { match: /startup|dpiit/i, docType: 'STARTUP_INDIA_CERTIFICATE' },
+  { match: /nsic/i, docType: 'NSIC_CERTIFICATE' },
+  { match: /digilocker/i, docType: 'DIGILOCKER_CERTIFICATE' },
+  { match: /bis|quality|iso/i, docType: 'BIS_QUALITY_CERTIFICATE' },
 ];
 
 export type InferredDocName =
@@ -62,7 +67,7 @@ export function parseInferredDocName(zipEntryPath: string): InferredDocName {
   if (!rule) {
     return {
       ok: false,
-      reason: `"${fileName}": document-type keyword "${docTypeKeyword}" isn't one of oem / local|india|mii / pan / gst / udyam.`,
+      reason: `"${fileName}": document-type keyword "${docTypeKeyword}" isn't one of oem / local|india|mii / pan / gst / udyam / epfo|esic / startup / nsic / digilocker / bis.`,
     };
   }
 
