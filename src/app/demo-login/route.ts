@@ -23,6 +23,9 @@ export async function GET(request: NextRequest) {
     maxAge: 60 * 60 * 8, // 8 hours
   });
 
-  const dashboardUrl = new URL('/dashboard', request.url);
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const proto = request.headers.get('x-forwarded-proto') ?? 'https';
+  const redirectOrigin = host ? `${proto}://${host}` : request.url;
+  const dashboardUrl = new URL('/dashboard', redirectOrigin);
   return NextResponse.redirect(dashboardUrl);
 }
