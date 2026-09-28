@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeM Bid Compliance Verification Platform | Jaanch</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23000080'/><path d='M16 6 L26 24 L6 24 Z' fill='%23FF9933'/></svg>">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #fbf9f5;
+    }
+    .top-strip {
+      height: 3px;
+      display: flex;
+      width: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+    }
+    .strip-orange { flex: 1; background: #FF9933; }
+    .strip-white { flex: 1; background: #ffffff; }
+    .strip-green { flex: 1; background: #138808; }
+    
+    .header-bar {
+      position: fixed;
+      top: 3px;
+      left: 0;
+      right: 0;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #e7ded5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 99;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #000080;
+    }
+    .badge-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #138808;
+      background: rgba(19, 136, 8, 0.12);
+    }
+    .badge-live::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #138808;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+    }
+    .links {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn {
+      font-size: 11px;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn-officer {
+      background: #78350f;
+      color: white;
+    }
+    .btn-officer:hover {
+      background: #5b270a;
+    }
+    .btn-repo {
+      background: #000080;
+      color: white;
+    }
+    .btn-repo:hover {
+      background: #000060;
+    }
+    .btn-expand {
+      background: #f1ede7;
+      color: #333;
+      border: 1px solid #d8c2b3;
+    }
+    .btn-expand:hover {
+      background: #e5ded6;
+    }
+    
+    #app-frame {
+      width: 100%;
+      height: calc(100vh - 47px);
+      margin-top: 47px;
+      border: none;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-strip">
+    <div class="strip-orange"></div>
+    <div class="strip-white"></div>
+    <div class="strip-green"></div>
+  </div>
+
+  <header class="header-bar">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="6" fill="#000080"/>
+        <path d="M16 6 L26 24 L6 24 Z" fill="#FF9933"/>
+        <circle cx="16" cy="18" r="3" fill="#ffffff"/>
+      </svg>
+      <span>Jaanch · GeM Compliance Verification Platform (SIH 2026)</span>
+      <span class="badge-live">LIVE DEPLOYED</span>
+    </div>
+
+    <div class="links">
+      <a href="https://sally-rebecca-deployment-vaccine.trycloudflare.com/demo-login?role=officer" target="_blank" class="btn btn-officer">
+        ⚡ Direct Officer Login
+      </a>
+      <a href="https://github.com/Pranavreddy1608/Jaanch" target="_blank" class="btn btn-repo">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        Pranavreddy1608/Jaanch
+      </a>
+      <button onclick="toggleFullScreen()" class="btn btn-expand" title="Toggle Full Screen">
+        ⛶ Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <iframe 
+    id="app-frame" 
+    src="https://sally-rebecca-deployment-vaccine.trycloudflare.com/sign-in"
+    allow="clipboard-read; clipboard-write"
+  ></iframe>
+
+  <script>
+    function toggleFullScreen() {
+      const frame = document.getElementById('app-frame');
+      const header = document.querySelector('.header-bar');
+      if (header.style.display === 'none') {
+        header.style.display = 'flex';
+        frame.style.height = 'calc(100vh - 47px)';
+        frame.style.marginTop = '47px';
+      } else {
+        header.style.display = 'none';
+        frame.style.height = '100vh';
+        frame.style.marginTop = '0';
+      }
+    }
+  </script>
+</body>
+</html>
